@@ -21,6 +21,14 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const { setVoiceConnected, setMuted, setScreenSharing } = useAppStore();
 
+  // Use refs to store store setters to avoid stale closures
+  const storeSettersRef = useRef({ setVoiceConnected, setMuted, setScreenSharing });
+  
+  // Update refs when setters change (though Zustand setters are stable)
+  useEffect(() => {
+    storeSettersRef.current = { setVoiceConnected, setMuted, setScreenSharing };
+  }, [setVoiceConnected, setMuted, setScreenSharing]);
+
   useEffect(() => {
     if (!roomId) return;
 
@@ -40,11 +48,14 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
           remoteAudioRef.current.srcObject = stream;
         }
         setIsConnected(true);
-        setVoiceConnected(true);
+        // Use ref to access latest setter
+        storeSettersRef.current.setVoiceConnected(true);
       },
       onConnectionStateChange: (state) => {
-        setIsConnected(state === 'connected');
-        setVoiceConnected(state === 'connected');
+        const connected = state === 'connected';
+        setIsConnected(connected);
+        // Use ref to access latest setter
+        storeSettersRef.current.setVoiceConnected(connected);
       },
     });
 
@@ -60,7 +71,7 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
     return () => {
       webrtc.cleanup();
     };
-  }, [roomId, setVoiceConnected]);
+  }, [roomId]); // Only depend on roomId, use refs for store setters
 
   // Update audio elements when streams change
   useEffect(() => {
@@ -80,7 +91,7 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
       webrtcRef.current.toggleMute();
       const muted = webrtcRef.current.isMuted();
       setIsMuted(muted);
-      setMuted(muted);
+      storeSettersRef.current.setMuted(muted);
     }
   };
 
@@ -91,11 +102,11 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
       if (isScreenSharing) {
         await webrtcRef.current.stopScreenShare();
         setIsScreenSharing(false);
-        setScreenSharing(false);
+        storeSettersRef.current.setScreenSharing(false);
       } else {
         await webrtcRef.current.startScreenShare();
         setIsScreenSharing(true);
-        setScreenSharing(true);
+        storeSettersRef.current.setScreenSharing(true);
       }
     } catch (error) {
       console.error('Error toggling screen share:', error);
@@ -107,11 +118,11 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
     if (webrtcRef.current) {
       await webrtcRef.current.cleanup();
       setIsConnected(false);
-      setVoiceConnected(false);
+      storeSettersRef.current.setVoiceConnected(false);
       setIsMuted(false);
       setIsScreenSharing(false);
-      setMuted(false);
-      setScreenSharing(false);
+      storeSettersRef.current.setMuted(false);
+      storeSettersRef.current.setScreenSharing(false);
     }
   };
 

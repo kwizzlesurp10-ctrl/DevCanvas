@@ -127,15 +127,21 @@ export default function Canvas({ roomId }: CanvasProps) {
       });
     }, 33); // ~30fps
 
-    // Listen to store changes and broadcast them
-    // Store the unsubscribe function in a ref so we can clean it up properly
-    unsubscribeStoreRef.current = editor.store.listen(() => {
-      if (isApplyingRemoteChangesRef.current) return;
-      
-      // Get current snapshot and broadcast it
-      const snapshot = editor.store.getSnapshot();
-      throttledBroadcast(snapshot);
-    });
+    // Set up store listener AFTER a brief delay to ensure channel subscription is ready
+    // This prevents initial changes from being dropped if they occur synchronously
+    setTimeout(() => {
+      if (!editorRef.current) return; // Editor was unmounted before timeout
+
+      // Listen to store changes and broadcast them
+      // Store the unsubscribe function in a ref so we can clean it up properly
+      unsubscribeStoreRef.current = editor.store.listen(() => {
+        if (isApplyingRemoteChangesRef.current) return;
+        
+        // Get current snapshot and broadcast it
+        const snapshot = editor.store.getSnapshot();
+        throttledBroadcast(snapshot);
+      });
+    }, 100); // Small delay to ensure channel subscription effect has run
   };
 
   return (

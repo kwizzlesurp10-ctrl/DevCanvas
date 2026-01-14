@@ -64,13 +64,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
     requireSupabaseConfig();
     setIsCreating(true);
     try {
-      // Initialize user
-      const userId = getAnonymousUserId();
-      setUserId(userId);
-      setUserDisplayName(userName);
-      setStoreUserName(userName);
-
-      // Create room in database
+      // Create room in database FIRST, before setting user info
       const { data: room, error } = await supabase
         .from('rooms')
         .insert({})
@@ -100,6 +94,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
         // Continue anyway - room was created successfully
       }
 
+      // Only set user info AFTER room creation succeeds
+      const userId = getAnonymousUserId();
+      setUserId(userId);
+      setUserDisplayName(userName);
+      setStoreUserName(userName);
+
       router.push(`/room/${room.id}`);
     } catch (error) {
       console.error('Error creating room:', error);
@@ -108,6 +108,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
         : 'Failed to create room. Please try again.';
       alert(errorMessage);
       setIsCreating(false);
+      // User info is NOT set if room creation fails
     }
   };
 
@@ -125,7 +126,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
     requireSupabaseConfig();
     setIsJoining(true);
     try {
-      // Validate room exists
+      // Validate room exists FIRST, before setting user info
       const { data: room, error } = await supabase
         .from('rooms')
         .select('id')
@@ -136,7 +137,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
         throw new Error('Room not found');
       }
 
-      // Initialize user
+      // Only set user info AFTER room validation succeeds
       const userId = getAnonymousUserId();
       setUserId(userId);
       setUserDisplayName(userName);
@@ -147,6 +148,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       console.error('Error joining room:', error);
       alert('Room not found. Please check the room ID.');
       setIsJoining(false);
+      // User info is NOT set if room join fails
     }
   };
 

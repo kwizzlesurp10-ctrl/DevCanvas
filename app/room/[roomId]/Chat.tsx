@@ -19,12 +19,20 @@ export default function Chat({ roomId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { currentChannelId, userId, userName } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!currentChannelId) return;
+    if (!currentChannelId) {
+      setMessages([]);
+      return;
+    }
+
+    // Set loading state before clearing messages
+    setIsLoading(true);
+    setMessages([]);
 
     // Load initial messages
     const loadMessages = async () => {
@@ -36,11 +44,13 @@ export default function Chat({ roomId }: ChatProps) {
 
       if (error) {
         console.error('Error loading messages:', error);
+        setIsLoading(false);
         return;
       }
 
       if (data) {
         setMessages(data);
+        setIsLoading(false);
       }
     };
 
@@ -75,7 +85,8 @@ export default function Chat({ roomId }: ChatProps) {
 
     return () => {
       channel.unsubscribe();
-      setMessages([]);
+      // Don't clear messages here - let the next effect handle it
+      // This prevents race conditions and message flashing
     };
   }, [currentChannelId, roomId]);
 
@@ -123,8 +134,13 @@ export default function Chat({ roomId }: ChatProps) {
         <h3 className="font-semibold">Chat</h3>
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="space-y-4">
-          {messages.map((message) => (
+        {isLoading ? (
+          <div className="flex items-center justify-center p-4 text-muted-foreground">
+            Loading messages...
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((message) => (
             <div key={message.id} className="space-y-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-sm font-medium">
@@ -162,7 +178,8 @@ export default function Chat({ roomId }: ChatProps) {
             </div>
           ))}
           <div ref={messagesEndRef} />
-        </div>
+          </div>
+        )}
       </ScrollArea>
       <div className="border-t border-border p-4">
         <div className="flex gap-2">

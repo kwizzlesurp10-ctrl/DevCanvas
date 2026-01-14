@@ -9,7 +9,7 @@ If you're getting this error, check the following:
 **Most Common Issue:** The database tables don't exist yet.
 
 **Solution:**
-1. Go to https://supabase.com/dashboard/project/ylccqmleggazinzsbzgb
+1. Go to https://supabase.com/dashboard and select your project
 2. Click **SQL Editor** in the left sidebar
 3. Click **New Query**
 4. Open `supabase/schema.sql` from your project
@@ -48,11 +48,11 @@ Test your Supabase connection:
 
 ```javascript
 // In browser console (F12)
+// Replace with your actual Supabase credentials from .env.local
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(
-  'https://ylccqmleggazinzsbzgb.supabase.co',
-  'sb_publishable_u9c5zQSSICdSyHHAkMaMUg_PmoBw3XO'
-);
+const supabaseUrl = 'YOUR_SUPABASE_URL'; // From .env.local
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // From .env.local
+const supabase = createClient(supabaseUrl, supabaseKey);
 supabase.from('rooms').select('count').then(console.log);
 ```
 

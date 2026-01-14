@@ -35,7 +35,9 @@ export default function Sidebar({ roomId }: SidebarProps) {
       if (data && data.length > 0) {
         setChannels(data);
         // Set first channel as active if none selected
-        if (!currentChannelId) {
+        // Use currentChannelId from store at the time of load, not from closure
+        const currentId = useAppStore.getState().currentChannelId;
+        if (!currentId) {
           setCurrentChannelId(data[0].id);
         }
       }
@@ -63,7 +65,7 @@ export default function Sidebar({ roomId }: SidebarProps) {
     return () => {
       channel.unsubscribe();
     };
-  }, [roomId, currentChannelId, setCurrentChannelId]);
+  }, [roomId]); // Only depend on roomId to prevent infinite re-subscriptions
 
   const handleCreateChannel = async () => {
     const name = prompt('Enter channel name:');

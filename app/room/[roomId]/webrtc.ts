@@ -66,9 +66,21 @@ export class WebRTCManager {
         if (!this.peerConnection || this.isInitiator) return;
 
         try {
-          await this.peerConnection.setRemoteDescription(
-            new RTCSessionDescription(payload.offer)
-          );
+          // Validate payload structure
+          if (!payload.offer || typeof payload.offer !== 'object') {
+            console.error('Invalid offer payload:', payload);
+            return;
+          }
+
+          // Ensure offer has required properties (type and sdp)
+          const offer = payload.offer as RTCSessionDescriptionInit;
+          if (!offer.type || !offer.sdp) {
+            console.error('Offer missing required properties (type or sdp):', offer);
+            return;
+          }
+
+          // Modern WebRTC: pass plain object directly, no RTCSessionDescription constructor
+          await this.peerConnection.setRemoteDescription(offer);
           const answer = await this.peerConnection.createAnswer();
           await this.peerConnection.setLocalDescription(answer);
 
@@ -85,9 +97,21 @@ export class WebRTCManager {
         if (!this.peerConnection || !this.isInitiator) return;
 
         try {
-          await this.peerConnection.setRemoteDescription(
-            new RTCSessionDescription(payload.answer)
-          );
+          // Validate payload structure
+          if (!payload.answer || typeof payload.answer !== 'object') {
+            console.error('Invalid answer payload:', payload);
+            return;
+          }
+
+          // Ensure answer has required properties (type and sdp)
+          const answer = payload.answer as RTCSessionDescriptionInit;
+          if (!answer.type || !answer.sdp) {
+            console.error('Answer missing required properties (type or sdp):', answer);
+            return;
+          }
+
+          // Modern WebRTC: pass plain object directly, no RTCSessionDescription constructor
+          await this.peerConnection.setRemoteDescription(answer);
         } catch (error) {
           console.error('Error handling answer:', error);
         }

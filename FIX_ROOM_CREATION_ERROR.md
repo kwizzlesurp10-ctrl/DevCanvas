@@ -8,7 +8,7 @@ The `rooms` table doesn't exist yet in your Supabase database. Here's how to fix
 
 ### 1. Open Supabase SQL Editor
 
-1. Go to: https://supabase.com/dashboard/project/ylccqmleggazinzsbzgb
+1. Go to: https://supabase.com/dashboard
 2. In the **left sidebar**, click **SQL Editor**
 3. Click **New Query** button
 
@@ -63,11 +63,13 @@ Common errors:
 
 ### Verify Environment Variables
 
-Make sure `.env.local` exists and has:
+Make sure `.env.local` exists and has your Supabase credentials:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://ylccqmleggazinzsbzgb.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_u9c5zQSSICdSyHHAkMaMUg_PmoBw3XO
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_public_key
 ```
+
+Get these from: Supabase Dashboard → Settings → API
 
 Then **restart your dev server**:
 ```bash

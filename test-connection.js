@@ -1,10 +1,26 @@
 // Quick test script to verify Supabase connection
 // Run with: node test-connection.js
+//
+// IMPORTANT: Set your Supabase credentials in .env.local or as environment variables
+// This script reads from environment variables to avoid exposing credentials
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://ylccqmleggazinzsbzgb.supabase.co';
-const supabaseKey = 'sb_publishable_u9c5zQSSICdSyHHAkMaMUg_PmoBw3XO';
+// Read from environment variables (set in .env.local or system env)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase credentials!');
+  console.error('\nPlease set environment variables:');
+  console.error('  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url');
+  console.error('  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key');
+  console.error('\nOr create a .env.local file with these values.');
+  console.error('\nTo load .env.local in Node.js, use:');
+  console.error('  npm install dotenv');
+  console.error('  require("dotenv").config({ path: ".env.local" });');
+  process.exit(1);
+}
 
 console.log('Testing Supabase connection...');
 console.log('URL:', supabaseUrl);
@@ -25,7 +41,8 @@ async function testConnection() {
       console.error('❌ Error:', error.message);
       if (error.message.includes('does not exist')) {
         console.error('\n💡 SOLUTION: Run the database schema!');
-        console.error('   Go to: https://supabase.com/dashboard/project/ylccqmleggazinzsbzgb');
+        console.error('   Go to: https://supabase.com/dashboard');
+        console.error('   Select your project');
         console.error('   Click: SQL Editor → New Query');
         console.error('   Copy/paste contents of supabase/schema.sql');
         console.error('   Click: Run');
