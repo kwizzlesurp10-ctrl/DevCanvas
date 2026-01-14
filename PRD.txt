@@ -1,0 +1,78 @@
+You are an expert full-stack TypeScript developer building a production-ready collaborative communication app for a two-person dev team.
+
+Project name: DevCanvas
+Description: A lightweight, canvas-first real-time collaboration tool combining:
+- Infinite collaborative whiteboard (tldraw) for visual game plans and direction
+- Discord-style text channels with persistent, threaded chat for archiving Grok/AI research threads
+- Always-available voice call + screen sharing (native WebRTC)
+- Code snippet highlighting, file sharing, markdown support
+- Designed for exactly two users, low latency, no bloat
+
+Tech stack (use latest stable versions as of January 2026):
+- Next.js 14+ with app router and server actions
+- TypeScript (strict)
+- Tailwind CSS + shadcn/ui components
+- Supabase (auth, postgres DB, realtime, storage) — create all schemas and policies
+- @tldraw/tldraw (latest) for the canvas with multiplayer via broadcast updates
+- Native WebRTC for peer-to-peer voice + screen sharing (signaling via private Supabase realtime channel)
+- zustand or React context for local UI state
+- lucide-react icons
+
+Requirements:
+- Room-based: URL /room/[roomId] (UUID v4). Generate new room or join existing.
+- Invite by sharing URL — no login required initially, optional Supabase email/password or anonymous.
+- Layout: Left sidebar (channel list + channel switcher), main area (tldraw canvas), right sidebar optional (participants + Grok thread viewer), bottom dock (voice controls, mute, screen share toggle, participant avatars).
+- Canvas: Full tldraw editor, multi-page support (pages = different plans/topics). Realtime multiplayer by broadcasting store changes/deltas over Supabase realtime channel (throttle to 30fps max).
+- Channels: DB table "channels" with room_id, name, order. Messages table with channel_id, content (markdown), code blocks, file URLs, timestamps, author.
+- Chat: Realtime subscription, threaded replies, reactions, searchable history.
+- Voice/Screen: Single peer connection per room. Auto-connect on join. getUserMedia for mic/camera, getDisplayMedia for screen. UI controls: mute mic/camera, start/stop screen share (replace track), volume indicators.
+- File sharing: Upload to Supabase storage, insert link/preview in chat.
+- Persistence: Chat + channel list saved to DB. Canvas state optionally snapshotted to DB on exit or periodically.
+- Mobile-friendly but desktop primary.
+- Dark mode default.
+
+Suggested file structure:
+/app
+  layout.tsx
+  page.tsx (home — create/join room)
+  room/[roomId]/page.tsx (main app)
+  room/[roomId]/Canvas.tsx
+  room/[roomId]/Sidebar.tsx
+  room/[roomId]/Chat.tsx
+  room/[roomId]/VoiceDock.tsx
+  room/[roomId]/webrtc.ts (signaling + peer logic)
+/lib
+  supabaseClient.ts
+  supabaseAdmin.ts (if needed)
+/components
+  ui/* (shadcn)
+/public
+/types
+/utils
+
+Implementation notes/pseudo-code:
+
+1. Supabase setup:
+   - Tables: rooms (id, created_at), channels (id, room_id, name), messages (id, channel_id, content, author_id, parent_id, created_at), files metadata if needed.
+   - RLS policies: anyone in room can read/write own room.
+
+2. Realtime canvas sync (in Canvas.tsx):
+   useEffect(() => {
+     const channel = supabase.channel(`room:${roomId}:canvas`)
+     const editor = useEditor()
+     editor.store.onChange = throttle((changes) => {
+       channel.send({ type: 'broadcast', event: 'canvas-update', payload: changes })
+     })
+     channel.on('broadcast', { event: 'canvas-update' }, ({ payload }) => {
+       editor.store.applyRemoteChanges(payload)
+     }).subscribe()
+   })
+
+3. WebRTC signaling (webrtc.ts):
+   const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
+   const channel = supabase.channel(`room:${roomId}:webrtc`)
+   // On offer/answer/ice: broadcast via channel
+   // On track received: add to remote video/audio elements
+   // Auto create offer if first peer, etc.
+
+Generate the complete project step-by-step. First create supabase schema SQL, then root files, then page.tsx files with full code. Include .env.example with SUPABASE_URL and ANON_KEY. Make it beautiful, performant, and fully functional. Add comments explaining key realtime parts.

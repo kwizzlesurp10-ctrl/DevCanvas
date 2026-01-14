@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DevCanvas
 
-## Getting Started
+A lightweight, canvas-first real-time collaboration tool for two-person dev teams. Combines infinite collaborative whiteboard (tldraw), Discord-style text channels, voice calls, and screen sharing.
 
-First, run the development server:
+## Features
+
+- 🎨 **Infinite Collaborative Canvas** - Real-time whiteboard powered by tldraw
+- 💬 **Discord-style Channels** - Persistent, threaded chat with markdown support
+- 🎤 **Voice & Screen Sharing** - Native WebRTC peer-to-peer communication
+- 📎 **File Sharing** - Upload and share files via Supabase storage
+- 🌙 **Dark Mode** - Beautiful dark theme by default
+- ⚡ **Low Latency** - Optimized for real-time collaboration
+
+## Tech Stack
+
+- **Next.js 16** with App Router
+- **TypeScript** (strict mode)
+- **Tailwind CSS** + **shadcn/ui**
+- **Supabase** (PostgreSQL, Realtime, Storage, Auth)
+- **tldraw** - Collaborative canvas
+- **WebRTC** - Peer-to-peer voice/video
+- **Zustand** - State management
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Set Up Supabase
+
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Run the SQL schema from `supabase/schema.sql` in your Supabase SQL editor
+3. Get your project URL and anon key from Settings > API
+
+### 3. Configure Environment Variables
+
+Create a `.env.local` file:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Create or Join Room** - Enter your name and create a new room or join an existing one via room ID
+2. **Collaborate on Canvas** - Draw, write, and plan together in real-time
+3. **Chat in Channels** - Create channels and have threaded conversations
+4. **Voice & Screen Share** - Click the voice controls to connect and share your screen
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+/app
+  /room/[roomId]
+    Canvas.tsx      # tldraw canvas with realtime sync
+    Sidebar.tsx     # Channel list
+    Chat.tsx        # Message thread
+    VoiceDock.tsx   # WebRTC controls
+    webrtc.ts       # Peer connection logic
+/lib
+  supabaseClient.ts # Supabase client
+  store.ts          # Zustand state
+/types
+  database.ts       # DB types
+  app.ts            # App state types
+/supabase
+  schema.sql        # Database schema
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database Schema
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **rooms** - Collaboration spaces
+- **channels** - Chat channels within rooms
+- **messages** - Chat messages with threading
+- **reactions** - Emoji reactions
+- **canvas_snapshots** - Optional canvas state backups
 
-## Deploy on Vercel
+## Realtime Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Canvas Sync**: Broadcasts store snapshots via Supabase Realtime (throttled to 30fps)
+- **Chat**: Postgres change subscriptions for instant message updates
+- **WebRTC**: Signaling via Supabase Realtime, peer-to-peer media streaming
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT
