@@ -6,7 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send } from 'lucide-react';
+import { Send, Pencil, Trash2, X, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import type { Message } from '@/types/database';
@@ -20,6 +20,8 @@ export default function Chat({ roomId }: ChatProps) {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
   const { currentChannelId, userId, userName } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -120,6 +122,50 @@ export default function Chat({ roomId }: ChatProps) {
     }
   };
 
+  const handleEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  };
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editContent.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ content: editContent.trim() })
+        .eq('id', messageId);
+
+      if (error) throw error;
+      setEditingMessageId(null);
+      setEditContent('');
+    } catch (error) {
+      console.error('Error updating message:', error);
+      alert('Failed to update message');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (!confirm('Delete this message?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert('Failed to delete message');
+    }
+  };
+
   if (!currentChannelId) {
     return (
       <div className="w-80 border-l border-border bg-card p-4 text-center text-muted-foreground">
@@ -140,44 +186,107 @@ export default function Chat({ roomId }: ChatProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((message) => (
-            <div key={message.id} className="space-y-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium">
-                  {message.author_name || 'Anonymous'}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(message.created_at).toLocaleTimeString()}
-                </span>
-              </div>
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown
-                  components={{
-                    code({ node, inline, className, children, ...props }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      return !inline && match ? (
-                        <SyntaxHighlighter
-                          language={match[1]}
-                          PreTag="div"
-                          {...props}
-                          style={{ backgroundColor: 'transparent' }}
+            {messages.map((message) => {
+              const isOwnMessage = message.author_id === (userId || getAnonymousUserId());
+              const isEditing = editingMessageId === message.id;
+
+              return (
+                <div key={message.id} className="group space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium">
+                      {message.author_name || 'Anonymous'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(message.created_at).toLocaleTimeString()}
+                    </span>
+                    {isOwnMessage && !isEditing && (
+                      <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleEdit(message)}
+                          title="Edit message"
                         >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(message.id)}
+                          title="Delete message"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSaveEdit(message.id);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        className="flex-1"
+                        autoFocus
+                      />
+                      <Button
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleSaveEdit(message.id)}
+                        title="Save (Enter)"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={handleCancelEdit}
+                        title="Cancel (Esc)"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code(props) {
+                            const { className, children, ...rest } = props;
+                            const match = /language-(\w+)/.exec(className || '');
+                            const inline = !match;
+                            return !inline && match ? (
+                              <SyntaxHighlighter
+                                language={match[1]}
+                                PreTag="div"
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code className={className} {...rest}>
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>

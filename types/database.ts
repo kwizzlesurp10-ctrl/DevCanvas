@@ -11,6 +11,7 @@ export interface Channel {
   room_id: string;
   name: string;
   order: number;
+  created_by: string | null;
   created_at: string;
 }
 

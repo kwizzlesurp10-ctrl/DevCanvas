@@ -17,6 +17,7 @@ CREATE TABLE channels (
   room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   "order" INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT, -- Track who created the channel (for future access control)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(room_id, name)
 );
@@ -54,10 +55,13 @@ CREATE TABLE canvas_snapshots (
 
 -- Create indexes for performance
 CREATE INDEX idx_channels_room_id ON channels(room_id);
+CREATE INDEX idx_channels_created_by ON channels(created_by);
 CREATE INDEX idx_messages_channel_id ON messages(channel_id);
+CREATE INDEX idx_messages_author_id ON messages(author_id);
 CREATE INDEX idx_messages_parent_id ON messages(parent_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
 CREATE INDEX idx_reactions_message_id ON reactions(message_id);
+CREATE INDEX idx_reactions_author_id ON reactions(author_id);
 CREATE INDEX idx_canvas_snapshots_room_id ON canvas_snapshots(room_id);
 
 -- Row Level Security (RLS) Policies
@@ -92,11 +96,11 @@ CREATE POLICY "Anyone can read messages" ON messages
 CREATE POLICY "Anyone can create messages" ON messages
   FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Anyone can update own messages" ON messages
-  FOR UPDATE USING (author_id = current_setting('app.author_id', true));
+CREATE POLICY "Anyone can update messages" ON messages
+  FOR UPDATE USING (true);
 
-CREATE POLICY "Anyone can delete own messages" ON messages
-  FOR DELETE USING (author_id = current_setting('app.author_id', true));
+CREATE POLICY "Anyone can delete messages" ON messages
+  FOR DELETE USING (true);
 
 -- Reactions: Anyone can read/write reactions
 CREATE POLICY "Anyone can read reactions" ON reactions
@@ -105,8 +109,8 @@ CREATE POLICY "Anyone can read reactions" ON reactions
 CREATE POLICY "Anyone can create reactions" ON reactions
   FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Anyone can delete own reactions" ON reactions
-  FOR DELETE USING (author_id = current_setting('app.author_id', true));
+CREATE POLICY "Anyone can delete reactions" ON reactions
+  FOR DELETE USING (true);
 
 -- Canvas snapshots: Anyone can read/write snapshots
 CREATE POLICY "Anyone can read canvas snapshots" ON canvas_snapshots

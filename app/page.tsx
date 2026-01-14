@@ -80,25 +80,26 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
         throw new Error('Room was created but no data returned');
       }
 
-      // Create default "general" channel
+      // Only set user info AFTER room creation succeeds
+      const userId = getAnonymousUserId();
+      setUserId(userId);
+      setUserDisplayName(userName);
+      setStoreUserName(userName);
+
+      // Create default "general" channel with creator tracking
       const { error: channelError } = await supabase
         .from('channels')
         .insert({
           room_id: room.id,
           name: 'general',
           order: 0,
+          created_by: userId,
         });
 
       if (channelError) {
         console.error('Error creating default channel:', channelError);
         // Continue anyway - room was created successfully
       }
-
-      // Only set user info AFTER room creation succeeds
-      const userId = getAnonymousUserId();
-      setUserId(userId);
-      setUserDisplayName(userName);
-      setStoreUserName(userName);
 
       // Reset loading state before navigation
       setIsCreating(false);
