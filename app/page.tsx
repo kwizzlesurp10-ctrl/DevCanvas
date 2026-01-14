@@ -100,6 +100,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       setUserDisplayName(userName);
       setStoreUserName(userName);
 
+      // Reset loading state before navigation
+      setIsCreating(false);
       router.push(`/room/${room.id}`);
     } catch (error) {
       console.error('Error creating room:', error);
@@ -143,6 +145,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       setUserDisplayName(userName);
       setStoreUserName(userName);
 
+      // Reset loading state before navigation
+      setIsJoining(false);
       router.push(`/room/${room.id}`);
     } catch (error) {
       console.error('Error joining room:', error);
