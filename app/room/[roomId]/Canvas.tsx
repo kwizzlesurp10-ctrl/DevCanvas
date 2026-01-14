@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Editor, Tldraw, TLStoreSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,8 +29,9 @@ export default function Canvas({ roomId }: CanvasProps) {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const unsubscribeStoreRef = useRef<(() => void) | null>(null);
   const isApplyingRemoteChangesRef = useRef(false);
+  const [isEditorMounted, setIsEditorMounted] = useState(false);
 
-  // Cleanup store listener when component unmounts or editor changes
+  // Cleanup store listener when component unmounts
   useEffect(() => {
     return () => {
       if (unsubscribeStoreRef.current) {
@@ -40,8 +41,15 @@ export default function Canvas({ roomId }: CanvasProps) {
     };
   }, []);
 
+  // Set up Supabase channel subscription when both roomId and editor are available
   useEffect(() => {
-    if (!roomId || !editorRef.current) return;
+    if (!roomId || !isEditorMounted || !editorRef.current) return;
+
+    // Cleanup existing channel if roomId changes
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+      channelRef.current = null;
+    }
 
     // Create Supabase realtime channel for canvas updates
     const channel = supabase.channel(`room:${roomId}:canvas`, {
@@ -94,8 +102,9 @@ export default function Canvas({ roomId }: CanvasProps) {
 
     return () => {
       channel.unsubscribe();
+      channelRef.current = null;
     };
-  }, [roomId]);
+  }, [roomId, isEditorMounted]); // Re-run when roomId or editor mount status changes
 
   const handleMount = (editor: Editor) => {
     // Cleanup previous subscription if editor is remounted
@@ -105,6 +114,7 @@ export default function Canvas({ roomId }: CanvasProps) {
     }
 
     editorRef.current = editor;
+    setIsEditorMounted(true); // Trigger channel subscription effect
 
     // Throttle local changes and broadcast them (max 30fps = ~33ms)
     const throttledBroadcast = throttle((snapshot: TLStoreSnapshot) => {
