@@ -34,10 +34,14 @@ export default function Sidebar({ roomId }: SidebarProps) {
 
       if (data && data.length > 0) {
         setChannels(data);
-        // Set first channel as active if none selected
-        // Use currentChannelId from store at the time of load, not from closure
+        // Get current channel ID from store
         const currentId = useAppStore.getState().currentChannelId;
-        if (!currentId) {
+        
+        // Check if current channel exists in this room's channels
+        const channelExists = currentId && data.some((ch) => ch.id === currentId);
+        
+        // Set first channel as active if none selected OR if current channel doesn't exist in this room
+        if (!currentId || !channelExists) {
           setCurrentChannelId(data[0].id);
         }
       }

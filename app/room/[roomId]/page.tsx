@@ -11,16 +11,15 @@ import VoiceDock from './VoiceDock';
 export default function RoomPage() {
   const params = useParams();
   const roomId = params.roomId as string;
-  const { setCurrentRoomId, currentChannelId, setCurrentChannelId } = useAppStore();
+  const { setCurrentRoomId, setCurrentChannelId } = useAppStore();
 
   useEffect(() => {
     setCurrentRoomId(roomId);
     
-    // Set default channel if none selected
-    if (!currentChannelId) {
-      // We'll load channels in Sidebar and set the first one
-    }
-  }, [roomId, setCurrentRoomId, currentChannelId, setCurrentChannelId]);
+    // Clear channel selection when room changes
+    // This ensures we don't keep a channel from the previous room
+    setCurrentChannelId(null);
+  }, [roomId, setCurrentRoomId, setCurrentChannelId]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
