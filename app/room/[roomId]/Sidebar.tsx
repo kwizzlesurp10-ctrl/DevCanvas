@@ -4,7 +4,18 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import { Plus, Hash } from 'lucide-react';
 import type { Channel } from '@/types/database';
 
@@ -14,6 +25,8 @@ interface SidebarProps {
 
 export default function Sidebar({ roomId }: SidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
   const { currentChannelId, setCurrentChannelId } = useAppStore();
   const currentRoomIdRef = useRef<string | null>(null);
 
@@ -90,8 +103,10 @@ export default function Sidebar({ roomId }: SidebarProps) {
   }, [roomId]); // Only depend on roomId to prevent infinite re-subscriptions
 
   const handleCreateChannel = async () => {
-    const name = prompt('Enter channel name:');
-    if (!name || !name.trim()) return;
+    if (!newChannelName.trim()) {
+      toast.error('Please enter a channel name');
+      return;
+    }
 
     const { userId } = useAppStore.getState();
 
@@ -99,7 +114,7 @@ export default function Sidebar({ roomId }: SidebarProps) {
       .from('channels')
       .insert({
         room_id: roomId,
-        name: name.trim().toLowerCase(),
+        name: newChannelName.trim().toLowerCase(),
         order: channels.length,
         created_by: userId || 'anonymous',
       })
@@ -108,20 +123,23 @@ export default function Sidebar({ roomId }: SidebarProps) {
 
     if (error) {
       console.error('Error creating channel:', error);
-      alert('Failed to create channel');
+      toast.error('Failed to create channel');
     } else if (data) {
       setCurrentChannelId(data.id);
+      setCreateDialogOpen(false);
+      setNewChannelName('');
+      toast.success('Channel created');
     }
   };
 
   return (
-    <div className="flex w-64 flex-col border-r border-border bg-card">
+    <div className="flex h-full w-full flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border p-4">
         <h2 className="font-semibold">Channels</h2>
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleCreateChannel}
+          onClick={() => setCreateDialogOpen(true)}
           title="Create channel"
         >
           <Plus className="h-4 w-4" />
@@ -139,12 +157,52 @@ export default function Sidebar({ roomId }: SidebarProps) {
                   : ''
               }`}
             >
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              <span>{channel.name}</span>
+              <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="truncate">{channel.name}</span>
             </button>
           ))}
         </div>
       </ScrollArea>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Channel</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new channel. Channel names will be converted to lowercase.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="channel-name">Channel Name</Label>
+              <Input
+                id="channel-name"
+                placeholder="general"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleCreateChannel();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCreateDialogOpen(false);
+              setNewChannelName('');
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateChannel}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

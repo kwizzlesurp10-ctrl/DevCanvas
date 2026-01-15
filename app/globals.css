@@ -289,3 +289,79 @@
     animation: pulse-slow 3s ease-in-out infinite;
   }
 }
+
+/* Tldraw canvas overrides */
+@layer base {
+  /* Adjust tldraw background wrapper positioning */
+  .tl-background__wrapper {
+    left: -166px !important;
+    top: 20px !important;
+  }
+
+  /* Ensure tldraw container respects parent constraints */
+  .tl-container {
+    height: 100% !important;
+    width: 100% !important;
+    max-height: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Make tldraw toolbars draggable */
+  .tlui-layout__top,
+  .tlui-layout__top__left,
+  .tlui-layout__top__center,
+  .tlui-layout__top__right,
+  .tlui-layout__bottom,
+  .tlui-layout__bottom__left,
+  .tlui-layout__bottom__center,
+  .tlui-layout__bottom__right,
+  .tlui-menu-zone,
+  .tlui-help-menu,
+  .tlui-menu {
+    cursor: move !important;
+    user-select: none;
+  }
+
+  /* Prevent text selection while dragging */
+  .tlui-layout__top *,
+  .tlui-layout__top__left *,
+  .tlui-layout__top__center *,
+  .tlui-layout__top__right *,
+  .tlui-layout__bottom *,
+  .tlui-layout__bottom__left *,
+  .tlui-layout__bottom__center *,
+  .tlui-layout__bottom__right *,
+  .tlui-menu-zone *,
+  .tlui-help-menu *,
+  .tlui-menu * {
+    user-select: none;
+  }
+
+  /* Allow interaction with buttons and inputs inside toolbars */
+  .tlui-layout__top button,
+  .tlui-layout__top input,
+  .tlui-layout__top__left button,
+  .tlui-layout__top__left input,
+  .tlui-layout__top__center button,
+  .tlui-layout__top__center input,
+  .tlui-layout__top__right button,
+  .tlui-layout__top__right input,
+  .tlui-layout__bottom button,
+  .tlui-layout__bottom input,
+  .tlui-layout__bottom__left button,
+  .tlui-layout__bottom__left input,
+  .tlui-layout__bottom__center button,
+  .tlui-layout__bottom__center input,
+  .tlui-layout__bottom__right button,
+  .tlui-layout__bottom__right input,
+  .tlui-menu-zone button,
+  .tlui-menu-zone input,
+  .tlui-help-menu button,
+  .tlui-help-menu input,
+  .tlui-menu button,
+  .tlui-menu input {
+    cursor: pointer !important;
+    user-select: auto;
+  }
+}

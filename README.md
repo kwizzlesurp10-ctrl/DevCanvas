@@ -10,6 +10,7 @@ A lightweight, canvas-first real-time collaboration tool for two-person dev team
 - 📎 **File Sharing** - Upload and share files via Supabase storage
 - 🌙 **Dark Mode** - Beautiful dark theme by default
 - ⚡ **Low Latency** - Optimized for real-time collaboration
+- 📐 **Resizable Panels** - Customize your workspace layout with drag-to-resize panels
 
 ## Tech Stack
 
@@ -20,6 +21,7 @@ A lightweight, canvas-first real-time collaboration tool for two-person dev team
 - **tldraw** - Collaborative canvas
 - **WebRTC** - Peer-to-peer voice/video
 - **Zustand** - State management
+- **react-resizable-panels** - Flexible layout system
 
 ## Setup
 
@@ -58,6 +60,17 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 2. **Collaborate on Canvas** - Draw, write, and plan together in real-time
 3. **Chat in Channels** - Create channels and have threaded conversations
 4. **Voice & Screen Share** - Click the voice controls to connect and share your screen
+5. **Customize Layout** - Drag panel borders to resize sidebars, canvas, and voice dock to your preference
+
+### Resizable Workspace
+
+The DevCanvas interface features fully resizable panels:
+- **Drag horizontal borders** between Channels, Canvas, and Chat to adjust width
+- **Drag vertical border** above Voice Dock to adjust height
+- **Smart constraints** prevent panels from becoming too small or too large
+- **Visual feedback** with hover effects on resize handles
+
+See [RESIZABLE_FEATURE_GUIDE.md](./RESIZABLE_FEATURE_GUIDE.md) for detailed usage instructions.
 
 ## Project Structure
 

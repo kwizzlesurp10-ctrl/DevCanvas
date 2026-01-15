@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import { supabase, getAnonymousUserId, getUserDisplayName, setUserDisplayName, isSupabaseConfigured, requireSupabaseConfig } from '@/lib/supabaseClient';
 import { useAppStore } from '@/lib/store';
 import { Sparkles, AlertCircle } from 'lucide-react';
@@ -57,7 +59,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
 
   const handleCreateRoom = async () => {
     if (!userName.trim()) {
-      alert('Please enter your name');
+      toast.error('Please enter your name');
       return;
     }
 
@@ -109,7 +111,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Failed to create room. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
       setIsCreating(false);
       // User info is NOT set if room creation fails
     }
@@ -117,12 +119,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
 
   const handleJoinRoom = async () => {
     if (!roomId.trim()) {
-      alert('Please enter a room ID');
+      toast.error('Please enter a room ID');
       return;
     }
 
     if (!userName.trim()) {
-      alert('Please enter your name');
+      toast.error('Please enter your name');
       return;
     }
 
@@ -151,7 +153,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       router.push(`/room/${room.id}`);
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Room not found. Please check the room ID.');
+      toast.error('Room not found. Please check the room ID.');
       setIsJoining(false);
       // User info is NOT set if room join fails
     }
@@ -171,9 +173,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="userName" className="text-sm font-medium">
+            <Label htmlFor="userName">
               Your Name
-            </label>
+            </Label>
             <Input
               id="userName"
               placeholder="Enter your name"
@@ -207,9 +209,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="roomId" className="text-sm font-medium">
+            <Label htmlFor="roomId">
               Room ID
-            </label>
+            </Label>
             <Input
               id="roomId"
               placeholder="Paste room ID here"

@@ -6,9 +6,21 @@ import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { Send, Pencil, Trash2, X, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message } from '@/types/database';
 
 interface ChatProps {
@@ -22,6 +34,8 @@ export default function Chat({ roomId }: ChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const { currentChannelId, userId, userName } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -113,9 +127,10 @@ export default function Chat({ roomId }: ChatProps) {
       });
 
       if (error) throw error;
+      toast.success('Message sent');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      toast.error('Failed to send message');
       setInput(messageContent); // Restore input on error
     } finally {
       setIsSending(false);
@@ -139,9 +154,10 @@ export default function Chat({ roomId }: ChatProps) {
       if (error) throw error;
       setEditingMessageId(null);
       setEditContent('');
+      toast.success('Message updated');
     } catch (error) {
       console.error('Error updating message:', error);
-      alert('Failed to update message');
+      toast.error('Failed to update message');
     }
   };
 
@@ -150,32 +166,40 @@ export default function Chat({ roomId }: ChatProps) {
     setEditContent('');
   };
 
-  const handleDelete = async (messageId: string) => {
-    if (!confirm('Delete this message?')) return;
+  const handleDeleteClick = (messageId: string) => {
+    setMessageToDelete(messageId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!messageToDelete) return;
 
     try {
       const { error } = await supabase
         .from('messages')
         .delete()
-        .eq('id', messageId);
+        .eq('id', messageToDelete);
 
       if (error) throw error;
+      toast.success('Message deleted');
+      setDeleteDialogOpen(false);
+      setMessageToDelete(null);
     } catch (error) {
       console.error('Error deleting message:', error);
-      alert('Failed to delete message');
+      toast.error('Failed to delete message');
     }
   };
 
   if (!currentChannelId) {
     return (
-      <div className="w-80 border-l border-border bg-card p-4 text-center text-muted-foreground">
+      <div className="h-full w-full border-l border-border bg-card p-4 text-center text-muted-foreground">
         Select a channel to start chatting
       </div>
     );
   }
 
   return (
-    <div className="flex w-80 flex-col border-l border-border bg-card">
+    <div className="flex h-full w-full flex-col border-l border-border bg-card">
       <div className="border-b border-border p-4">
         <h3 className="font-semibold">Chat</h3>
       </div>
@@ -214,7 +238,7 @@ export default function Chat({ roomId }: ChatProps) {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(message.id)}
+                          onClick={() => handleDeleteClick(message.id)}
                           title="Delete message"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -267,7 +291,13 @@ export default function Chat({ roomId }: ChatProps) {
                             return !inline && match ? (
                               <SyntaxHighlighter
                                 language={match[1]}
+                                style={oneDark}
                                 PreTag="div"
+                                customStyle={{
+                                  margin: 0,
+                                  borderRadius: '0.5rem',
+                                  padding: '1rem',
+                                }}
                               >
                                 {String(children).replace(/\n$/, '')}
                               </SyntaxHighlighter>
@@ -312,6 +342,23 @@ export default function Chat({ roomId }: ChatProps) {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

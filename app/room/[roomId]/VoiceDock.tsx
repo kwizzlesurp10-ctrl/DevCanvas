@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { WebRTCManager } from './webrtc';
@@ -107,7 +108,7 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
       }
     } catch (error) {
       console.error('Error toggling screen share:', error);
-      alert('Failed to toggle screen share');
+      toast.error('Failed to toggle screen share');
     }
   };
 
@@ -121,7 +122,7 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
       storeSettersRef.current.setVoiceConnected(true);
     } catch (error) {
       console.error('Failed to connect:', error);
-      alert('Failed to access microphone. Please grant permissions and try again.');
+      toast.error('Failed to access microphone. Please grant permissions and try again.');
     }
   };
 
@@ -138,7 +139,7 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
   };
 
   return (
-    <div className="flex items-center justify-between border-t border-border bg-card p-4">
+    <div className="flex h-full w-full items-center justify-between border-t border-border bg-card p-4">
       <div className="flex items-center gap-2">
         {/* Hidden audio elements for playback */}
         <audio ref={localAudioRef} autoPlay muted />
