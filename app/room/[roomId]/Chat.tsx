@@ -182,11 +182,13 @@ export default function Chat({ roomId }: ChatProps) {
 
       if (error) throw error;
       toast.success('Message deleted');
-      setDeleteDialogOpen(false);
-      setMessageToDelete(null);
     } catch (error) {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
+    } finally {
+      // Always close dialog and clear state, regardless of success or failure
+      setDeleteDialogOpen(false);
+      setMessageToDelete(null);
     }
   };
 

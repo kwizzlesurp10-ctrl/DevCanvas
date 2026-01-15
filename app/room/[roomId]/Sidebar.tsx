@@ -110,25 +110,31 @@ export default function Sidebar({ roomId }: SidebarProps) {
 
     const { userId } = useAppStore.getState();
 
-    const { data, error } = await supabase
-      .from('channels')
-      .insert({
-        room_id: roomId,
-        name: newChannelName.trim().toLowerCase(),
-        order: channels.length,
-        created_by: userId || 'anonymous',
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('channels')
+        .insert({
+          room_id: roomId,
+          name: newChannelName.trim().toLowerCase(),
+          order: channels.length,
+          created_by: userId || 'anonymous',
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+
+      if (data) {
+        setCurrentChannelId(data.id);
+        toast.success('Channel created');
+      }
+    } catch (error) {
       console.error('Error creating channel:', error);
       toast.error('Failed to create channel');
-    } else if (data) {
-      setCurrentChannelId(data.id);
+    } finally {
+      // Always close dialog and clear state, regardless of success or failure
       setCreateDialogOpen(false);
       setNewChannelName('');
-      toast.success('Channel created');
     }
   };
 
