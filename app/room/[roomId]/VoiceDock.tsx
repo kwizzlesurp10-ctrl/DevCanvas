@@ -32,7 +32,8 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
   useEffect(() => {
     if (!roomId) return;
 
-    // Initialize WebRTC
+    // Initialize WebRTC manager but don't auto-connect
+    // User must click connect button to grant permissions
     const webrtc = new WebRTCManager({
       roomId,
       onLocalStream: (stream) => {
@@ -61,12 +62,8 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
 
     webrtcRef.current = webrtc;
 
-    // Auto-connect on mount
-    webrtc.initialize().then(() => {
-      webrtc.startLocalStream().catch((error) => {
-        console.error('Failed to start local stream:', error);
-      });
-    });
+    // Don't auto-connect - wait for user to click connect button
+    // This prevents permission errors on page load
 
     return () => {
       webrtc.cleanup();
@@ -114,6 +111,20 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
     }
   };
 
+  const handleConnect = async () => {
+    if (!webrtcRef.current) return;
+
+    try {
+      await webrtcRef.current.initialize();
+      await webrtcRef.current.startLocalStream();
+      setIsConnected(true);
+      storeSettersRef.current.setVoiceConnected(true);
+    } catch (error) {
+      console.error('Failed to connect:', error);
+      alert('Failed to access microphone. Please grant permissions and try again.');
+    }
+  };
+
   const handleDisconnect = async () => {
     if (webrtcRef.current) {
       await webrtcRef.current.cleanup();
@@ -149,40 +160,53 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant={isMuted ? 'destructive' : 'default'}
-          size="icon"
-          onClick={handleToggleMute}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
-          {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
+        {!isConnected ? (
+          <Button
+            variant="default"
+            size="icon"
+            onClick={handleConnect}
+            title="Connect voice"
+          >
+            <Phone className="h-4 w-4" />
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant={isMuted ? 'destructive' : 'default'}
+              size="icon"
+              onClick={handleToggleMute}
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
 
-        <Button
-          variant={isScreenSharing ? 'default' : 'outline'}
-          size="icon"
-          onClick={handleToggleScreenShare}
-          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-        >
-          {isScreenSharing ? (
-            <MonitorOff className="h-4 w-4" />
-          ) : (
-            <Monitor className="h-4 w-4" />
-          )}
-        </Button>
+            <Button
+              variant={isScreenSharing ? 'default' : 'outline'}
+              size="icon"
+              onClick={handleToggleScreenShare}
+              title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+            >
+              {isScreenSharing ? (
+                <MonitorOff className="h-4 w-4" />
+              ) : (
+                <Monitor className="h-4 w-4" />
+              )}
+            </Button>
 
-        <Button
-          variant="destructive"
-          size="icon"
-          onClick={handleDisconnect}
-          title="Disconnect"
-        >
-          <PhoneOff className="h-4 w-4" />
-        </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={handleDisconnect}
+              title="Disconnect"
+            >
+              <PhoneOff className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="text-xs text-muted-foreground">
-        {isConnected ? 'Connected' : 'Connecting...'}
+        {isConnected ? 'Connected' : 'Not connected'}
       </div>
     </div>
   );
