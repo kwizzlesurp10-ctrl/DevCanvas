@@ -11,19 +11,19 @@ interface CanvasProps {
   roomId: string;
 }
 
-// Throttle function to limit updates to 30fps
-function throttle<T extends (...args: any[]) => void>(
-  func: T,
+// Throttle function to limit updates to 30fps (typed for TLStoreSnapshot callback)
+function throttleSnapshot(
+  func: (snapshot: TLStoreSnapshot) => void,
   limit: number
-): T {
-  let inThrottle: boolean;
-  return function (this: unknown, ...args: Parameters<T>) {
+): (snapshot: TLStoreSnapshot) => void {
+  let inThrottle = false;
+  return function (snapshot: TLStoreSnapshot) {
     if (!inThrottle) {
-      func.apply(this, args);
+      func(snapshot);
       inThrottle = true;
       setTimeout(() => (inThrottle = false), limit);
     }
-  } as T;
+  };
 }
 
 export default function Canvas({ roomId }: CanvasProps) {
@@ -71,8 +71,6 @@ export default function Canvas({ roomId }: CanvasProps) {
 
         try {
           isApplyingRemoteChangesRef.current = true;
-          const editor = editorRef.current;
-          
           // Apply remote changes using tldraw's store API
           // The payload should contain the store snapshot or incremental changes
           if (payload.snapshot) {
@@ -82,7 +80,6 @@ export default function Canvas({ roomId }: CanvasProps) {
             try {
               // TODO: Implement proper snapshot loading when tldraw v4 API is finalized
               // For now, this is a placeholder to prevent runtime errors
-              console.log('Received snapshot update (not applied - API pending)');
             } catch (loadError) {
               console.error('Error processing snapshot:', loadError);
             }
@@ -91,7 +88,7 @@ export default function Canvas({ roomId }: CanvasProps) {
             // This is a simplified approach - for production, use proper CRDT/operational transforms
             const changes = payload.changes;
             if (Array.isArray(changes)) {
-              changes.forEach((change: unknown) => {
+              changes.forEach((_change: unknown) => {
                 // Apply each change to the store
                 // Adjust based on tldraw's actual change format
                 // For now, this is a placeholder - implement proper change application
@@ -104,10 +101,8 @@ export default function Canvas({ roomId }: CanvasProps) {
           isApplyingRemoteChangesRef.current = false;
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Canvas channel subscribed');
-        }
+      .subscribe(() => {
+        // Channel ready; broadcast handlers are active
       });
 
     return () => {
@@ -164,7 +159,7 @@ export default function Canvas({ roomId }: CanvasProps) {
               element.style.left = `${x}px`;
               element.style.top = `${y}px`;
               element.style.zIndex = '1000';
-            } catch (e) {
+            } catch {
               // Invalid stored data, ignore
             }
           }
@@ -294,7 +289,7 @@ export default function Canvas({ roomId }: CanvasProps) {
     setIsEditorMounted(true); // Trigger channel subscription effect
 
     // Throttle local changes and broadcast them (max 30fps = ~33ms)
-    const throttledBroadcast = throttle((snapshot: TLStoreSnapshot) => {
+    const throttledBroadcast = throttleSnapshot((snapshot: TLStoreSnapshot) => {
       if (!channelRef.current || isApplyingRemoteChangesRef.current) return;
 
       channelRef.current.send({
@@ -302,7 +297,7 @@ export default function Canvas({ roomId }: CanvasProps) {
         event: 'canvas-update',
         payload: { snapshot },
       });
-    }, 33) as (snapshot: TLStoreSnapshot) => void; // ~30fps
+    }, 33); // ~30fps
 
     // Set up store listener AFTER a brief delay to ensure channel subscription is ready
     // This prevents initial changes from being dropped if they occur synchronously
@@ -316,15 +311,46 @@ export default function Canvas({ roomId }: CanvasProps) {
         
         // Get current store state and broadcast it
         // Note: Actual sync implementation depends on tldraw v4 API
-        // For now, using simplified approach - broadcast changes indicator
-        const changes = { updated: Date.now() };
-        
-        // TODO: Use proper tldraw v4 store API when available
-        // For full collaboration, consider using tldraw's built-in multiplayer sync
-        // throttledBroadcast(changes);
+        // TODO: Use proper tldraw v4 store API - get snapshot and call throttledBroadcast(snapshot)
+        void Date.now();
       });
     }, 100); // Small delay to ensure channel subscription effect has run
   };
+
+  // Handle canvas resize/transform properly when container size changes
+  // Note: tldraw v4 handles resize internally via its own ResizeObserver
+  // We add a manual trigger to ensure proper updates when panels are resized
+  useEffect(() => {
+    if (!isEditorMounted || !editorRef.current) return;
+
+    // Set up resize observer to ensure canvas updates on container size changes
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (editorRef.current && entries.length > 0) {
+        // Container size changed; trigger viewport recalc
+        void entries[0].contentRect;
+        
+        // Trigger a re-render by updating the editor's viewport
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (editorRef.current) {
+            // Force tldraw to recalculate its viewport by dispatching a resize event
+            window.dispatchEvent(new Event('resize'));
+          }
+        });
+      }
+    });
+
+    // Observe the canvas container for size changes
+    const container = document.querySelector('.tl-container');
+    if (container) {
+      resizeObserver.observe(container);
+    }
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isEditorMounted]);
 
   return (
     <div 
@@ -358,7 +384,14 @@ export default function Canvas({ roomId }: CanvasProps) {
       </Button>
 
       {/* Canvas Container */}
-      <div className={`h-full w-full transition-opacity duration-200 ${isHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div 
+        className={`h-full w-full transition-opacity duration-200 ${isHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{ 
+          position: 'relative',
+          minHeight: 0, // Allow flexbox to shrink
+          minWidth: 0,  // Allow flexbox to shrink
+        }}
+      >
         <Tldraw
           licenseKey="tldraw-2026-04-25/WyJ3M1ZQMW1lXyIsWyIqIl0sMTYsIjIwMjYtMDQtMjUiXQ.05S0RsR0exqXPYkefqGDaBOgnyzozeUqV45lGemiXe7fKNHGDtJeyCYl/BDui5fx6eibkU3+QlnGXlWnmMX4pA"
           onMount={handleMount}

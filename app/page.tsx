@@ -12,10 +12,17 @@ import { useAppStore } from '@/lib/store';
 import { Sparkles, AlertCircle } from 'lucide-react';
 
 export default function Home() {
+  const router = useRouter();
+  const [roomId, setRoomId] = useState('');
+  const [userName, setUserName] = useState(getUserDisplayName());
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const { setUserId, setUserName: setStoreUserName } = useAppStore();
+
   // Show setup message if Supabase is not configured
   if (!isSupabaseConfigured) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex h-screen items-center justify-center bg-background p-4 overflow-auto">
         <Card className="w-full max-w-md animate-scale-in">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
@@ -50,12 +57,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
       </div>
     );
   }
-  const router = useRouter();
-  const [roomId, setRoomId] = useState('');
-  const [userName, setUserName] = useState(getUserDisplayName());
-  const [isCreating, setIsCreating] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
-  const { setUserId, setUserName: setStoreUserName } = useAppStore();
 
   const handleCreateRoom = async () => {
     if (!userName.trim()) {
@@ -160,7 +161,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex h-screen items-center justify-center bg-background p-4 overflow-auto">
       <Card className="w-full max-w-md animate-scale-in">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary animate-bounce-in">

@@ -5,19 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Home, Copy, Check } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getUserDisplayName } from '@/lib/supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 export default function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
-  const { currentRoomId, userName } = useAppStore();
+  const { userName } = useAppStore();
   const [copied, setCopied] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-
-  useEffect(() => {
-    setDisplayName(userName || getUserDisplayName());
-  }, [userName]);
+  const displayName = userName || getUserDisplayName();
 
   const isRoomPage = pathname?.startsWith('/room/');
   const roomId = isRoomPage ? pathname.split('/room/')[1] : null;
@@ -31,7 +27,7 @@ export default function Navigation() {
       setCopied(true);
       toast.success('Room link copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy room link');
     }
   };

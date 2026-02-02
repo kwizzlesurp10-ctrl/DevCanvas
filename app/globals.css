@@ -238,8 +238,33 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    height: 100%;
+    overflow: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  html::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+    width: 0;
+    height: 0;
+  }
   body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     @apply bg-background text-foreground;
+  }
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  #__next {
+    height: 100%;
   }
 }
 
@@ -292,12 +317,6 @@
 
 /* Tldraw canvas overrides */
 @layer base {
-  /* Adjust tldraw background wrapper positioning */
-  .tl-background__wrapper {
-    left: -166px !important;
-    top: 20px !important;
-  }
-
   /* Ensure tldraw container respects parent constraints */
   .tl-container {
     height: 100% !important;
@@ -305,6 +324,39 @@
     max-height: 100% !important;
     max-width: 100% !important;
     overflow: hidden !important;
+    position: relative !important;
+  }
+
+  /* Ensure canvas background wrapper fills container properly */
+  .tl-background__wrapper {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Ensure viewport container handles resize properly */
+  .tl-viewport-container {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Fix canvas element positioning */
+  .tl-canvas {
+    position: absolute !important;
+    inset: 0 !important;
+  }
+
+  /* Target the editor canvas area specifically */
+  .tl-editor {
+    background-color: oklch(0.145 0 0) !important;
+  }
+
+  /* Ensure no white backgrounds leak through */
+  .tlui-component,
+  .tlui-component > * {
+    background-color: transparent !important;
   }
 
   /* Make tldraw toolbars draggable */

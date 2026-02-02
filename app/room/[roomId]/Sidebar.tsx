@@ -153,24 +153,47 @@ export default function Sidebar({ roomId }: SidebarProps) {
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {channels.map((channel) => (
-            <button
-              key={channel.id}
-              onClick={() => setCurrentChannelId(channel.id)}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${
-                currentChannelId === channel.id
-                  ? 'bg-accent font-medium'
-                  : ''
-              }`}
-            >
-              <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="truncate">{channel.name}</span>
-            </button>
-          ))}
+          {channels.length === 0 ? (
+            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+              <p>No channels yet.</p>
+              <p className="mt-1 text-xs">Click the + button to create one.</p>
+            </div>
+          ) : (
+            <>
+              {!currentChannelId && channels.length > 0 && (
+                <div className="mb-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  <p className="font-medium">Select a channel to start chatting</p>
+                </div>
+              )}
+              {channels.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => setCurrentChannelId(channel.id)}
+                  className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${
+                    currentChannelId === channel.id
+                      ? 'bg-accent font-medium'
+                      : ''
+                  }`}
+                >
+                  <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{channel.name}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </ScrollArea>
 
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog 
+        open={createDialogOpen} 
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) {
+            // Clear state when dialog closes (e.g., clicking outside or pressing Escape)
+            setNewChannelName('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Channel</DialogTitle>

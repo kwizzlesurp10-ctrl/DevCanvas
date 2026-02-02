@@ -43,21 +43,22 @@ export default function RoomPage() {
   const { setCurrentRoomId, setCurrentChannelId } = useAppStore();
 
   // Load saved panel sizes or use defaults
+  // Canvas-first layout: prioritize canvas space (60% of horizontal space)
   // Ensure sizes add up to 100% for proper layout
   const [sidebarSize, setSidebarSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.sidebar, 20)
+    getStoredPanelSize(PANEL_SIZE_KEYS.sidebar, 15)
   );
   const [canvasSize, setCanvasSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.canvas, 50)
+    getStoredPanelSize(PANEL_SIZE_KEYS.canvas, 60)
   );
   const [chatSize, setChatSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.chat, 30)
+    getStoredPanelSize(PANEL_SIZE_KEYS.chat, 25)
   );
   const [voiceSize, setVoiceSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.voice, 15)
+    getStoredPanelSize(PANEL_SIZE_KEYS.voice, 12)
   );
   const [mainSize, setMainSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.main, 85)
+    getStoredPanelSize(PANEL_SIZE_KEYS.main, 88)
   );
 
   useEffect(() => {
