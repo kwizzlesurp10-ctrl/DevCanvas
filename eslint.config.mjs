@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "examples/**",
     "t-connection.js",
     "test-connection.js",
+    // Jest configuration must use CommonJS (next/jest.js requires require())
+    "jest.config.js",
   ]),
 ]);
 
