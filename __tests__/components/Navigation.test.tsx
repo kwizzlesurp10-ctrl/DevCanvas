@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import Navigation from '@/components/Navigation';
 
 // ---------------------------------------------------------------------------
@@ -72,11 +72,47 @@ describe('Navigation component', () => {
 
   it('renders the Copy Link button when on a room page', () => {
     renderNavigation('/room/abc-123');
-    expect(screen.getByText('Copy Link')).toBeInTheDocument();
+    expect(screen.getByTitle(/Copy room link/)).toBeInTheDocument();
   });
 
   it('does NOT render the Copy Link button on the home page', () => {
     renderNavigation('/');
-    expect(screen.queryByText('Copy Link')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/Copy room link/)).not.toBeInTheDocument();
+  });
+
+  it('Copy Link button has aria-keyshortcuts attribute on room page', () => {
+    renderNavigation('/room/abc-123');
+    const btn = screen.getByTitle(/Copy room link/);
+    expect(btn).toHaveAttribute('aria-keyshortcuts', 'Control+Shift+L');
+  });
+
+  it('keyboard shortcut Ctrl+Shift+L copies room link on room page', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+
+    renderNavigation('/room/abc-123');
+
+    await act(async () => {
+      fireEvent.keyDown(document, { key: 'l', ctrlKey: true, shiftKey: true });
+    });
+
+    expect(writeText).toHaveBeenCalled();
+  });
+
+  it('keyboard shortcut Ctrl+Shift+L does nothing on home page', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+
+    renderNavigation('/');
+
+    await act(async () => {
+      fireEvent.keyDown(document, { key: 'l', ctrlKey: true, shiftKey: true });
+    });
+
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

@@ -325,6 +325,7 @@ export default function Chat({ roomId }: ChatProps) {
       <div className="border-t border-border p-4">
         <div className="flex gap-2">
           <Input
+            id="chat-message-input"
             placeholder="Type a message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
