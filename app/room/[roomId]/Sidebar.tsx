@@ -100,7 +100,7 @@ export default function Sidebar({ roomId }: SidebarProps) {
       // Clear the ref when component unmounts or room changes
       currentRoomIdRef.current = null;
     };
-  }, [roomId]); // Only depend on roomId to prevent infinite re-subscriptions
+  }, [roomId, setCurrentChannelId]); // setCurrentChannelId is stable (Zustand action)
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) {
