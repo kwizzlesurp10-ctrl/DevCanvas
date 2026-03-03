@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Home, Copy, Check } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getUserDisplayName } from '@/lib/supabaseClient';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
 export default function Navigation() {
@@ -18,7 +18,7 @@ export default function Navigation() {
   const isRoomPage = pathname?.startsWith('/room/');
   const roomId = isRoomPage ? pathname.split('/room/')[1] : null;
 
-  const handleCopyRoomLink = async () => {
+  const handleCopyRoomLink = useCallback(async () => {
     if (!roomId) return;
 
     const roomUrl = `${window.location.origin}/room/${roomId}`;
@@ -30,11 +30,24 @@ export default function Navigation() {
     } catch {
       toast.error('Failed to copy room link');
     }
-  };
+  }, [roomId]);
 
   const handleGoHome = () => {
     router.push('/');
   };
+
+  // Keyboard shortcut: Ctrl/Cmd+Shift+L → copy room link
+  useEffect(() => {
+    if (!isRoomPage) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        handleCopyRoomLink();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isRoomPage, handleCopyRoomLink]);
 
   return (
     <nav className="border-b border-border bg-card px-4 py-2">
@@ -53,16 +66,16 @@ export default function Navigation() {
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold">DevCanvas</h1>
             {isRoomPage && roomId && (
-              <span className="text-sm text-muted-foreground">
+              <span className="hidden sm:inline text-sm text-muted-foreground">
                 Room: {roomId.slice(0, 8)}...
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {displayName && (
-            <span className="text-sm text-muted-foreground">
+            <span className="hidden sm:inline max-w-[120px] truncate text-sm text-muted-foreground">
               {displayName}
             </span>
           )}
@@ -72,16 +85,18 @@ export default function Navigation() {
               size="sm"
               onClick={handleCopyRoomLink}
               className="gap-2"
+              aria-keyshortcuts="Control+Shift+L"
+              title="Copy room link (Ctrl+Shift+L)"
             >
               {copied ? (
                 <>
                   <Check className="h-4 w-4" />
-                  Copied
+                  <span className="hidden sm:inline">Copied</span>
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4" />
-                  Copy Link
+                  <span className="hidden sm:inline">Copy Link</span>
                 </>
               )}
             </Button>
