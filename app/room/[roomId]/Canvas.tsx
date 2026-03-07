@@ -88,7 +88,7 @@ export default function Canvas({ roomId }: CanvasProps) {
             // This is a simplified approach - for production, use proper CRDT/operational transforms
             const changes = payload.changes;
             if (Array.isArray(changes)) {
-              changes.forEach((_change: unknown) => {
+              changes.forEach(() => {
                 // Apply each change to the store
                 // Adjust based on tldraw's actual change format
                 // For now, this is a placeholder - implement proper change application
@@ -309,10 +309,8 @@ export default function Canvas({ roomId }: CanvasProps) {
       unsubscribeStoreRef.current = editor.store.listen(() => {
         if (isApplyingRemoteChangesRef.current) return;
         
-        // Get current store state and broadcast it
-        // Note: Actual sync implementation depends on tldraw v4 API
-        // TODO: Use proper tldraw v4 store API - get snapshot and call throttledBroadcast(snapshot)
-        void Date.now();
+        // Get current store snapshot and broadcast to other peers
+        throttledBroadcast(editor.store.getStoreSnapshot());
       });
     }, 100); // Small delay to ensure channel subscription effect has run
   };
