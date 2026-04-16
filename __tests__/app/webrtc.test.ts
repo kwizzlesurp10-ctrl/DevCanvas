@@ -53,6 +53,7 @@ const mockSetRemoteDescription = jest.fn().mockResolvedValue(undefined);
 const mockSetLocalDescription = jest.fn().mockResolvedValue(undefined);
 const mockCreateAnswer = jest.fn().mockResolvedValue({ type: 'answer', sdp: 'answer-sdp' });
 const mockCreateOffer = jest.fn().mockResolvedValue({ type: 'offer', sdp: 'offer-sdp' });
+const mockAddIceCandidate = jest.fn().mockResolvedValue(undefined);
 
 class MockRTCPeerConnection {
   onicecandidate: ((e: { candidate: RTCIceCandidate | null }) => void) | null = null;
@@ -65,6 +66,7 @@ class MockRTCPeerConnection {
   createAnswer = mockCreateAnswer;
   createOffer = mockCreateOffer;
   getSenders = mockGetSenders;
+  addIceCandidate = mockAddIceCandidate;
   addTrack = jest.fn();
   close = mockClose;
 }
@@ -122,9 +124,33 @@ function makeManager(
 // Tests
 // ---------------------------------------------------------------------------
 describe('WebRTCManager', () => {
+  let offerHandler: ((payload: { payload: unknown }) => Promise<void> | void) | undefined;
+  let answerHandler: ((payload: { payload: unknown }) => Promise<void> | void) | undefined;
+  let iceCandidateHandler: ((payload: { payload: unknown }) => Promise<void> | void) | undefined;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOnFn.mockReturnValue(channelObject);
+    offerHandler = undefined;
+    answerHandler = undefined;
+    iceCandidateHandler = undefined;
+    mockAddIceCandidate.mockResolvedValue(undefined);
+    mockSetRemoteDescription.mockResolvedValue(undefined);
+
+    mockOnFn.mockImplementation((event, _config, callback) => {
+      if (event === 'broadcast') {
+        const castCallback = callback as (payload: { payload: unknown }) => Promise<void> | void;
+        const eventName = (_config as { event?: string }).event;
+        if (eventName === 'offer') {
+          offerHandler = castCallback;
+        } else if (eventName === 'answer') {
+          answerHandler = castCallback;
+        } else if (eventName === 'ice-candidate') {
+          iceCandidateHandler = castCallback;
+        }
+      }
+      return channelObject;
+    });
+
     mockSubscribeFn.mockReturnValue(channelObject);
     mockChannelFn.mockReturnValue(channelObject);
     mockGetUserMedia.mockImplementation(() => Promise.resolve(makeMockStream()));
@@ -227,6 +253,34 @@ describe('WebRTCManager', () => {
       const manager = makeManager();
       await manager.initialize();
       expect(mockSubscribeFn).toHaveBeenCalled();
+    });
+
+    it('ignores invalid offer payloads', async () => {
+      const manager = makeManager();
+      await manager.initialize();
+      expect(offerHandler).toBeDefined();
+
+      await offerHandler?.({ payload: { offer: { type: 'offer' } } });
+      expect(mockSetRemoteDescription).not.toHaveBeenCalled();
+    });
+
+    it('ignores invalid answer payloads', async () => {
+      const manager = makeManager();
+      await manager.initialize();
+      await manager.createOffer();
+      expect(answerHandler).toBeDefined();
+
+      await answerHandler?.({ payload: { answer: { type: 'answer' } } });
+      expect(mockSetRemoteDescription).toHaveBeenCalledTimes(0);
+    });
+
+    it('ignores invalid ice-candidate payloads', async () => {
+      const manager = makeManager();
+      await manager.initialize();
+      expect(iceCandidateHandler).toBeDefined();
+
+      await iceCandidateHandler?.({ payload: { candidate: null } });
+      expect(mockAddIceCandidate).not.toHaveBeenCalled();
     });
   });
 });

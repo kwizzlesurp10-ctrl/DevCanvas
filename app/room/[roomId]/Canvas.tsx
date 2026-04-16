@@ -6,10 +6,24 @@ import '@tldraw/tldraw/tldraw.css';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { z } from 'zod';
 
 interface CanvasProps {
   roomId: string;
 }
+
+const TLStoreSnapshotSchema = z.custom<TLStoreSnapshot>(
+  (value) =>
+    typeof value === 'object' &&
+    value !== null &&
+    'store' in value &&
+    'schema' in value,
+  'Invalid TLStoreSnapshot payload'
+);
+
+const CanvasBroadcastPayloadSchema = z.object({
+  snapshot: TLStoreSnapshotSchema.optional(),
+});
 
 // Throttle function to limit updates to 30fps (typed for TLStoreSnapshot callback)
 function throttleSnapshot(
@@ -70,31 +84,13 @@ export default function Canvas({ roomId }: CanvasProps) {
         if (!editorRef.current || isApplyingRemoteChangesRef.current) return;
 
         try {
-          isApplyingRemoteChangesRef.current = true;
-          // Apply remote changes using tldraw's store API
-          // The payload should contain the store snapshot or incremental changes
-          if (payload.snapshot) {
-            // Full snapshot update using tldraw v4 API
-            // Note: For now, we'll skip applying snapshots to avoid API conflicts
-            // In production, use tldraw's built-in multiplayer sync or proper store API
-            try {
-              // TODO: Implement proper snapshot loading when tldraw v4 API is finalized
-              // For now, this is a placeholder to prevent runtime errors
-            } catch (loadError) {
-              console.error('Error processing snapshot:', loadError);
-            }
-          } else if (payload.changes) {
-            // Incremental changes - apply directly to store
-            // This is a simplified approach - for production, use proper CRDT/operational transforms
-            const changes = payload.changes;
-            if (Array.isArray(changes)) {
-              changes.forEach(() => {
-                // Apply each change to the store
-                // Adjust based on tldraw's actual change format
-                // For now, this is a placeholder - implement proper change application
-              });
-            }
+          const parsedPayload = CanvasBroadcastPayloadSchema.safeParse(payload);
+          if (!parsedPayload.success || !parsedPayload.data.snapshot) {
+            return;
           }
+
+          isApplyingRemoteChangesRef.current = true;
+          editorRef.current.loadSnapshot(parsedPayload.data.snapshot);
         } catch (error) {
           console.error('Error applying remote canvas changes:', error);
         } finally {

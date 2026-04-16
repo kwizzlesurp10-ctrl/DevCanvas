@@ -61,6 +61,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 3. **Chat in Channels** - Create channels and have threaded conversations
 4. **Voice & Screen Share** - Click the voice controls to connect and share your screen
 5. **Customize Layout** - Drag panel borders to resize sidebars, canvas, and voice dock to your preference
+6. **Operate the Swarm Runtime** - Open `/swarm` to queue and execute autonomous runtime tasks
 
 ### Resizable Workspace
 
@@ -105,6 +106,17 @@ See [RESIZABLE_FEATURE_GUIDE.md](./RESIZABLE_FEATURE_GUIDE.md) for detailed usag
 - **Canvas Sync**: Broadcasts store snapshots via Supabase Realtime (throttled to 30fps)
 - **Chat**: Postgres change subscriptions for instant message updates
 - **WebRTC**: Signaling via Supabase Realtime, peer-to-peer media streaming
+
+## Swarm Runtime
+
+DevCanvas now ships with a deterministic in-app swarm runtime at `/swarm`.
+
+- **Server Actions** handle task ingress and queue execution.
+- **Strict zod validation** guards all external task input.
+- **Result<T, E> runtime semantics** provide explicit success/error flows.
+- **Agent catalog** defines specialized swarm roles and capabilities.
+
+See [docs/swarm/SWARMGENESIS.md](./docs/swarm/SWARMGENESIS.md) for the full gap analysis, architecture, and activation guide.
 
 ## License
 

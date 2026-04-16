@@ -65,6 +65,14 @@ export default function Navigation() {
           )}
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold">DevCanvas</h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/swarm')}
+              title="Open swarm runtime"
+            >
+              Swarm
+            </Button>
             {isRoomPage && roomId && (
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 Room: {roomId.slice(0, 8)}...

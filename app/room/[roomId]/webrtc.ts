@@ -1,5 +1,6 @@
 // WebRTC signaling and peer connection logic
 import { supabase } from '@/lib/supabaseClient';
+import { z } from 'zod';
 
 export interface WebRTCConfig {
   roomId: string;
@@ -8,11 +9,26 @@ export interface WebRTCConfig {
   onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
 }
 
+const SessionDescriptionSchema = z.object({
+  type: z.enum(['offer', 'answer', 'pranswer', 'rollback']),
+  sdp: z.string().min(1),
+});
+
+const IceCandidatePayloadSchema = z.object({
+  candidate: z.custom<RTCIceCandidateInit>(
+    (value) => typeof value === 'object' && value !== null,
+    'ICE candidate payload is invalid'
+  ),
+});
+
 export class WebRTCManager {
   private peerConnection: RTCPeerConnection | null = null;
   private channel: ReturnType<typeof supabase.channel> | null = null;
   private localStream: MediaStream | null = null;
   private isInitiator = false;
+  private hasReceivedOffer = false;
+  private hasCreatedOffer = false;
+  private offerTimer: ReturnType<typeof setTimeout> | null = null;
   private config: WebRTCConfig;
 
   constructor(config: WebRTCConfig) {
@@ -66,21 +82,16 @@ export class WebRTCManager {
         if (!this.peerConnection || this.isInitiator) return;
 
         try {
-          // Validate payload structure
-          if (!payload.offer || typeof payload.offer !== 'object') {
+          const parsedOffer = SessionDescriptionSchema.safeParse(payload.offer);
+          if (!parsedOffer.success) {
             console.error('Invalid offer payload:', payload);
             return;
           }
 
-          // Ensure offer has required properties (type and sdp)
-          const offer = payload.offer as RTCSessionDescriptionInit;
-          if (!offer.type || !offer.sdp) {
-            console.error('Offer missing required properties (type or sdp):', offer);
-            return;
-          }
+          this.hasReceivedOffer = true;
 
           // Modern WebRTC: pass plain object directly, no RTCSessionDescription constructor
-          await this.peerConnection.setRemoteDescription(offer);
+          await this.peerConnection.setRemoteDescription(parsedOffer.data);
           const answer = await this.peerConnection.createAnswer();
           await this.peerConnection.setLocalDescription(answer);
 
@@ -97,21 +108,14 @@ export class WebRTCManager {
         if (!this.peerConnection || !this.isInitiator) return;
 
         try {
-          // Validate payload structure
-          if (!payload.answer || typeof payload.answer !== 'object') {
+          const parsedAnswer = SessionDescriptionSchema.safeParse(payload.answer);
+          if (!parsedAnswer.success) {
             console.error('Invalid answer payload:', payload);
             return;
           }
 
-          // Ensure answer has required properties (type and sdp)
-          const answer = payload.answer as RTCSessionDescriptionInit;
-          if (!answer.type || !answer.sdp) {
-            console.error('Answer missing required properties (type or sdp):', answer);
-            return;
-          }
-
           // Modern WebRTC: pass plain object directly, no RTCSessionDescription constructor
-          await this.peerConnection.setRemoteDescription(answer);
+          await this.peerConnection.setRemoteDescription(parsedAnswer.data);
         } catch (error) {
           console.error('Error handling answer:', error);
         }
@@ -120,7 +124,13 @@ export class WebRTCManager {
         if (!this.peerConnection) return;
 
         try {
-          await this.peerConnection.addIceCandidate(payload.candidate);
+          const parsedCandidate = IceCandidatePayloadSchema.safeParse(payload);
+          if (!parsedCandidate.success) {
+            console.error('Invalid ICE candidate payload:', payload);
+            return;
+          }
+
+          await this.peerConnection.addIceCandidate(parsedCandidate.data.candidate);
         } catch (error) {
           console.error('Error adding ICE candidate:', error);
         }
@@ -129,8 +139,8 @@ export class WebRTCManager {
 
     // Check if we're the first peer (become initiator)
     // Simple heuristic: wait a bit and if no offer received, become initiator
-    setTimeout(async () => {
-      if (!this.isInitiator && this.peerConnection) {
+    this.offerTimer = setTimeout(async () => {
+      if (!this.isInitiator && !this.hasReceivedOffer && this.peerConnection) {
         await this.createOffer();
       }
     }, 1000);
@@ -139,6 +149,7 @@ export class WebRTCManager {
   async createOffer() {
     if (!this.peerConnection || !this.channel) return;
 
+    this.hasCreatedOffer = true;
     this.isInitiator = true;
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
@@ -229,6 +240,11 @@ export class WebRTCManager {
   }
 
   async cleanup() {
+    if (this.offerTimer) {
+      clearTimeout(this.offerTimer);
+      this.offerTimer = null;
+    }
+
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
