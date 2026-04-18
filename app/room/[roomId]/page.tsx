@@ -10,41 +10,8 @@ import Canvas from './Canvas';
 import Chat from './Chat';
 import VoiceDock from './VoiceDock';
 import { Hash, PenSquare, MessageCircle, Mic } from 'lucide-react';
-
-// Panel size persistence keys
-const PANEL_SIZE_KEYS = {
-  sidebar: 'devcanvas-panel-sidebar',
-  canvas: 'devcanvas-panel-canvas',
-  chat: 'devcanvas-panel-chat',
-  voice: 'devcanvas-panel-voice',
-  main: 'devcanvas-panel-main',
-} as const;
-
-// Matches Tailwind's `md` breakpoint (768px) — expressed as max-width so values
-// below 768px are treated as mobile.
-const MOBILE_BREAKPOINT = '(max-width: 767px)';
-
-// Delay (ms) to allow a mobile panel switch to finish rendering before focusing
-// an element inside the newly-visible panel.
-const PANEL_SWITCH_FOCUS_DELAY_MS = 50;
-
-// Helper functions for panel size persistence
-function getStoredPanelSize(key: string, defaultValue: number): number {
-  if (typeof window === 'undefined') return defaultValue;
-  const stored = localStorage.getItem(key);
-  if (stored) {
-    const size = parseFloat(stored);
-    if (!isNaN(size) && size >= 0 && size <= 100) {
-      return size;
-    }
-  }
-  return defaultValue;
-}
-
-function savePanelSize(key: string, size: number): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(key, size.toString());
-}
+import { usePanelPersistence } from './hooks/usePanelPersistence';
+import { MOBILE_BREAKPOINT, TIMING, PANEL_CONSTRAINTS } from '@/lib/constants';
 
 type MobilePanel = 'channels' | 'canvas' | 'chat' | 'voice';
 
@@ -61,24 +28,8 @@ export default function RoomPage() {
   );
   const [mobileActivePanel, setMobileActivePanel] = useState<MobilePanel>('canvas');
 
-  // Load saved panel sizes or use defaults
-  // Canvas-first layout: prioritize canvas space (60% of horizontal space)
-  // Ensure sizes add up to 100% for proper layout
-  const [sidebarSize, setSidebarSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.sidebar, 15)
-  );
-  const [canvasSize, setCanvasSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.canvas, 60)
-  );
-  const [chatSize, setChatSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.chat, 25)
-  );
-  const [voiceSize, setVoiceSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.voice, 12)
-  );
-  const [mainSize, setMainSize] = useState(() =>
-    getStoredPanelSize(PANEL_SIZE_KEYS.main, 88)
-  );
+  // Use custom hook for panel size persistence
+  const [panelSizes, panelHandlers] = usePanelPersistence();
 
   // Imperative ref for sidebar panel (for keyboard shortcut toggle)
   const sidebarPanelRef = usePanelRef();
@@ -134,7 +85,7 @@ export default function RoomPage() {
         // Small delay to let the mobile panel switch render before focusing
         setTimeout(() => {
           document.getElementById('chat-message-input')?.focus();
-        }, PANEL_SWITCH_FOCUS_DELAY_MS);
+        }, TIMING.PANEL_SWITCH_FOCUS_DELAY);
         return;
       }
     };
@@ -142,41 +93,6 @@ export default function RoomPage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMobile, sidebarPanelRef]);
-
-  // Handler for horizontal panel layout changes (sidebar, canvas, chat)
-  const handleHorizontalLayoutChange = (layout: { [panelId: string]: number }) => {
-    const sidebarSize = layout['sidebar-panel'];
-    const canvasSize = layout['canvas-panel'];
-    const chatSize = layout['chat-panel'];
-    
-    if (sidebarSize !== undefined) {
-      setSidebarSize(sidebarSize);
-      savePanelSize(PANEL_SIZE_KEYS.sidebar, sidebarSize);
-    }
-    if (canvasSize !== undefined) {
-      setCanvasSize(canvasSize);
-      savePanelSize(PANEL_SIZE_KEYS.canvas, canvasSize);
-    }
-    if (chatSize !== undefined) {
-      setChatSize(chatSize);
-      savePanelSize(PANEL_SIZE_KEYS.chat, chatSize);
-    }
-  };
-
-  // Handler for vertical panel layout changes (main, voice)
-  const handleVerticalLayoutChange = (layout: { [panelId: string]: number }) => {
-    const mainSize = layout['main-panel'];
-    const voiceSize = layout['voice-panel'];
-    
-    if (mainSize !== undefined) {
-      setMainSize(mainSize);
-      savePanelSize(PANEL_SIZE_KEYS.main, mainSize);
-    }
-    if (voiceSize !== undefined) {
-      setVoiceSize(voiceSize);
-      savePanelSize(PANEL_SIZE_KEYS.voice, voiceSize);
-    }
-  };
 
   const mobileTabs: { id: MobilePanel; label: string; icon: React.ReactNode }[] = [
     { id: 'channels', label: 'Channels', icon: <Hash className="h-5 w-5" /> },
@@ -230,26 +146,26 @@ export default function RoomPage() {
       ) : (
         /* Desktop layout (md+) */
         <div className="flex-1 overflow-hidden">
-          <Group 
+          <Group
             orientation="vertical"
-            onLayoutChange={handleVerticalLayoutChange}
+            onLayoutChange={panelHandlers.handleVerticalLayoutChange}
           >
             {/* Main content area with horizontal panels */}
             <Panel
-              defaultSize={mainSize}
-              minSize={30}
+              defaultSize={panelSizes.main}
+              minSize={PANEL_CONSTRAINTS.main.min}
               id="main-panel"
             >
-              <Group 
+              <Group
                 orientation="horizontal"
-                onLayoutChange={handleHorizontalLayoutChange}
+                onLayoutChange={panelHandlers.handleHorizontalLayoutChange}
               >
                 {/* Left Sidebar - Channels */}
                 <Panel
                   panelRef={sidebarPanelRef}
-                  defaultSize={sidebarSize}
-                  minSize={15}
-                  maxSize={40}
+                  defaultSize={panelSizes.sidebar}
+                  minSize={PANEL_CONSTRAINTS.sidebar.min}
+                  maxSize={PANEL_CONSTRAINTS.sidebar.max}
                   collapsible={true}
                   collapsedSize={0}
                   id="sidebar-panel"
@@ -261,9 +177,9 @@ export default function RoomPage() {
 
                 {/* Main Canvas Area */}
                 <Panel
-                  defaultSize={canvasSize}
-                  minSize={30}
-                  maxSize={70}
+                  defaultSize={panelSizes.canvas}
+                  minSize={PANEL_CONSTRAINTS.canvas.min}
+                  maxSize={PANEL_CONSTRAINTS.canvas.max}
                   id="canvas-panel"
                 >
                   <div className="h-full w-full overflow-hidden">
@@ -275,9 +191,9 @@ export default function RoomPage() {
 
                 {/* Right Sidebar - Chat */}
                 <Panel
-                  defaultSize={chatSize}
-                  minSize={15}
-                  maxSize={40}
+                  defaultSize={panelSizes.chat}
+                  minSize={PANEL_CONSTRAINTS.chat.min}
+                  maxSize={PANEL_CONSTRAINTS.chat.max}
                   id="chat-panel"
                 >
                   <Chat roomId={roomId} />
@@ -289,9 +205,9 @@ export default function RoomPage() {
 
             {/* Bottom Voice Dock */}
             <Panel
-              defaultSize={voiceSize}
-              minSize={8}
-              maxSize={30}
+              defaultSize={panelSizes.voice}
+              minSize={PANEL_CONSTRAINTS.voice.min}
+              maxSize={PANEL_CONSTRAINTS.voice.max}
               id="voice-panel"
             >
               <VoiceDock roomId={roomId} />

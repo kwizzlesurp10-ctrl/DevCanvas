@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { supabase, getAnonymousUserId, getUserDisplayName } from '@/lib/supabaseClient';
+import { useState } from 'react';
+import { getAnonymousUserId } from '@/lib/supabaseClient';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,94 +22,26 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message } from '@/types/database';
+import { useMessageHandling } from './hooks/useMessageHandling';
 
 interface ChatProps {
   roomId: string;
 }
 
 export default function Chat({ roomId }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const { currentChannelId, userId, userName } = useAppStore();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!currentChannelId) {
-      setMessages([]);
-      return;
-    }
-
-    // Set loading state before clearing messages
-    setIsLoading(true);
-    setMessages([]);
-
-    // Load initial messages
-    const loadMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('channel_id', currentChannelId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error loading messages:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (data) {
-        setMessages(data);
-        setIsLoading(false);
-      }
-    };
-
-    loadMessages();
-
-    // Subscribe to new messages
-    const channel = supabase
-      .channel(`room:${roomId}:messages:${currentChannelId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-          filter: `channel_id=eq.${currentChannelId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setMessages((prev) => [...prev, payload.new as Message]);
-          } else if (payload.eventType === 'UPDATE') {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === payload.new.id ? (payload.new as Message) : msg
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-      // Don't clear messages here - let the next effect handle it
-      // This prevents race conditions and message flashing
-    };
-  }, [currentChannelId, roomId]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  // Use custom hook for message management
+  const { messages, isLoading, sendMessage, editMessage, deleteMessage } = useMessageHandling(
+    roomId,
+    currentChannelId
+  );
 
   const handleSend = async () => {
     if (!input.trim() || !currentChannelId || isSending) return;
@@ -119,14 +51,7 @@ export default function Chat({ roomId }: ChatProps) {
     setInput('');
 
     try {
-      const { error } = await supabase.from('messages').insert({
-        channel_id: currentChannelId,
-        content: messageContent,
-        author_id: userId || getAnonymousUserId(),
-        author_name: userName || getUserDisplayName(),
-      });
-
-      if (error) throw error;
+      await sendMessage(messageContent, userId, userName);
       toast.success('Message sent');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -146,12 +71,7 @@ export default function Chat({ roomId }: ChatProps) {
     if (!editContent.trim()) return;
 
     try {
-      const { error } = await supabase
-        .from('messages')
-        .update({ content: editContent.trim() })
-        .eq('id', messageId);
-
-      if (error) throw error;
+      await editMessage(messageId, editContent);
       setEditingMessageId(null);
       setEditContent('');
       toast.success('Message updated');
@@ -175,12 +95,7 @@ export default function Chat({ roomId }: ChatProps) {
     if (!messageToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('messages')
-        .delete()
-        .eq('id', messageToDelete);
-
-      if (error) throw error;
+      await deleteMessage(messageToDelete);
       toast.success('Message deleted');
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -205,7 +120,7 @@ export default function Chat({ roomId }: ChatProps) {
       <div className="border-b border-border p-4">
         <h3 className="font-semibold">Chat</h3>
       </div>
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4">
         {isLoading ? (
           <div className="flex items-center justify-center p-4 text-muted-foreground">
             Loading messages...
@@ -318,7 +233,6 @@ export default function Chat({ roomId }: ChatProps) {
                 </div>
               );
             })}
-            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>

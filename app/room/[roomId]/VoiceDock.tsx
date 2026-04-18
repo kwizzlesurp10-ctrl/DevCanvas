@@ -1,125 +1,32 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
-import { WebRTCManager } from './webrtc';
+import { useWebRTC } from './hooks/useWebRTC';
 
 interface VoiceDockProps {
   roomId: string;
 }
 
 export default function VoiceDock({ roomId }: VoiceDockProps) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const webrtcRef = useRef<WebRTCManager | null>(null);
-  const localAudioRef = useRef<HTMLAudioElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const { setVoiceConnected, setMuted, setScreenSharing } = useAppStore();
-
-  // Use refs to store store setters to avoid stale closures
-  const storeSettersRef = useRef({ setVoiceConnected, setMuted, setScreenSharing });
-  
-  // Update refs when setters change (though Zustand setters are stable)
-  useEffect(() => {
-    storeSettersRef.current = { setVoiceConnected, setMuted, setScreenSharing };
-  }, [setVoiceConnected, setMuted, setScreenSharing]);
-
-  useEffect(() => {
-    if (!roomId) return;
-
-    // Initialize WebRTC manager but don't auto-connect
-    // User must click connect button to grant permissions
-    const webrtc = new WebRTCManager({
-      roomId,
-      onLocalStream: (stream) => {
-        setLocalStream(stream);
-        if (localAudioRef.current) {
-          localAudioRef.current.srcObject = stream;
-          localAudioRef.current.muted = true; // Mute local audio to prevent feedback
-        }
-      },
-      onRemoteStream: (stream) => {
-        setRemoteStream(stream);
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = stream;
-        }
-        setIsConnected(true);
-        // Use ref to access latest setter
-        storeSettersRef.current.setVoiceConnected(true);
-      },
-      onConnectionStateChange: (state) => {
-        const connected = state === 'connected';
-        setIsConnected(connected);
-        // Use ref to access latest setter
-        storeSettersRef.current.setVoiceConnected(connected);
-      },
-    });
-
-    webrtcRef.current = webrtc;
-
-    // Don't auto-connect - wait for user to click connect button
-    // This prevents permission errors on page load
-
-    return () => {
-      webrtc.cleanup();
-    };
-  }, [roomId]); // Only depend on roomId, use refs for store setters
-
-  // Update audio elements when streams change
-  useEffect(() => {
-    if (localAudioRef.current && localStream) {
-      localAudioRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-
-  const handleToggleMute = () => {
-    if (webrtcRef.current) {
-      webrtcRef.current.toggleMute();
-      const muted = webrtcRef.current.isMuted();
-      setIsMuted(muted);
-      storeSettersRef.current.setMuted(muted);
-    }
-  };
-
-  const handleToggleScreenShare = async () => {
-    if (!webrtcRef.current) return;
-
-    try {
-      if (isScreenSharing) {
-        await webrtcRef.current.stopScreenShare();
-        setIsScreenSharing(false);
-        storeSettersRef.current.setScreenSharing(false);
-      } else {
-        await webrtcRef.current.startScreenShare();
-        setIsScreenSharing(true);
-        storeSettersRef.current.setScreenSharing(true);
-      }
-    } catch (error) {
-      console.error('Error toggling screen share:', error);
-      toast.error('Failed to toggle screen share');
-    }
-  };
+  const {
+    isConnected,
+    isMuted,
+    isScreenSharing,
+    localStream,
+    remoteStream,
+    connect,
+    disconnect,
+    toggleMute,
+    toggleScreenShare,
+    localAudioRef,
+    remoteAudioRef,
+  } = useWebRTC(roomId);
 
   const handleConnect = async () => {
-    if (!webrtcRef.current) return;
-
     try {
-      await webrtcRef.current.initialize();
-      await webrtcRef.current.startLocalStream();
-      setIsConnected(true);
-      storeSettersRef.current.setVoiceConnected(true);
+      await connect();
     } catch (error) {
       console.error('Failed to connect:', error);
       toast.error('Failed to access microphone. Please grant permissions and try again.');
@@ -127,14 +34,19 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
   };
 
   const handleDisconnect = async () => {
-    if (webrtcRef.current) {
-      await webrtcRef.current.cleanup();
-      setIsConnected(false);
-      storeSettersRef.current.setVoiceConnected(false);
-      setIsMuted(false);
-      setIsScreenSharing(false);
-      storeSettersRef.current.setMuted(false);
-      storeSettersRef.current.setScreenSharing(false);
+    await disconnect();
+  };
+
+  const handleToggleMute = () => {
+    toggleMute();
+  };
+
+  const handleToggleScreenShare = async () => {
+    try {
+      await toggleScreenShare();
+    } catch (error) {
+      console.error('Error toggling screen share:', error);
+      toast.error('Failed to toggle screen share');
     }
   };
 

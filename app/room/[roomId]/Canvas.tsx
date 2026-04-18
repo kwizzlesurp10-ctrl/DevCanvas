@@ -1,29 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Editor, Tldraw, TLStoreSnapshot } from '@tldraw/tldraw';
+import { Editor, Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { throttleSnapshot, makeToolbarsDraggable } from '@/lib/utils/canvas';
+import { CANVAS_THROTTLE_MS, TIMING } from '@/lib/constants';
+import type { TLStoreSnapshot } from '@/types/canvas';
 
 interface CanvasProps {
   roomId: string;
-}
-
-// Throttle function to limit updates to 30fps (typed for TLStoreSnapshot callback)
-function throttleSnapshot(
-  func: (snapshot: TLStoreSnapshot) => void,
-  limit: number
-): (snapshot: TLStoreSnapshot) => void {
-  let inThrottle = false;
-  return function (snapshot: TLStoreSnapshot) {
-    if (!inThrottle) {
-      func(snapshot);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
 }
 
 export default function Canvas({ roomId }: CanvasProps) {
@@ -115,148 +103,14 @@ export default function Canvas({ roomId }: CanvasProps) {
   useEffect(() => {
     if (!isEditorMounted || !editorRef.current) return;
 
-    const cleanupFunctions: Array<() => void> = [];
-
-    const makeToolbarsDraggable = () => {
-      // Find all toolbar containers - use more specific selectors
-      const toolbarSelectors = [
-        '.tlui-layout__top',
-        '.tlui-layout__top > div',
-        '.tlui-layout__top__left',
-        '.tlui-layout__top__center',
-        '.tlui-layout__top__right',
-        '.tlui-layout__bottom',
-        '.tlui-layout__bottom > div',
-        '.tlui-layout__bottom__left',
-        '.tlui-layout__bottom__center',
-        '.tlui-layout__bottom__right',
-        '.tlui-menu-zone',
-        '.tlui-help-menu',
-        '.tlui-menu',
-      ];
-
-      toolbarSelectors.forEach((selector) => {
-        const toolbars = document.querySelectorAll(selector);
-        toolbars.forEach((toolbar) => {
-          const element = toolbar as HTMLElement;
-          
-          // Skip if already made draggable or if element is too small
-          if (element.dataset.draggable === 'true' || element.offsetWidth < 20) return;
-
-          // Make it draggable
-          element.dataset.draggable = 'true';
-          element.style.cursor = 'move';
-          element.style.userSelect = 'none';
-
-          // Get stored position
-          const elementId = element.className || selector;
-          const storageKey = `toolbar-pos-${elementId.replace(/\s+/g, '-')}`;
-          const stored = localStorage.getItem(storageKey);
-          if (stored) {
-            try {
-              const { x, y } = JSON.parse(stored);
-              element.style.position = 'absolute';
-              element.style.left = `${x}px`;
-              element.style.top = `${y}px`;
-              element.style.zIndex = '1000';
-            } catch {
-              // Invalid stored data, ignore
-            }
-          }
-
-          let isDragging = false;
-          let startX = 0;
-          let startY = 0;
-          let initialX = 0;
-          let initialY = 0;
-
-          const handleMouseDown = (e: MouseEvent) => {
-            // Only start drag on left mouse button
-            if (e.button !== 0) return;
-            
-            // Don't drag if clicking on interactive elements inside toolbar
-            const target = e.target as HTMLElement;
-            if (
-              target.tagName === 'BUTTON' || 
-              target.tagName === 'INPUT' || 
-              target.tagName === 'SELECT' ||
-              target.closest('button') || 
-              target.closest('input') ||
-              target.closest('select') ||
-              target.closest('[role="button"]')
-            ) {
-              return;
-            }
-
-            isDragging = true;
-            const rect = element.getBoundingClientRect();
-            startX = e.clientX;
-            startY = e.clientY;
-            initialX = rect.left;
-            initialY = rect.top;
-
-            element.style.position = 'absolute';
-            element.style.zIndex = '1000';
-            element.style.pointerEvents = 'auto';
-            element.style.transition = 'none'; // Disable transitions during drag
-
-            e.preventDefault();
-            e.stopPropagation();
-          };
-
-          const handleMouseMove = (e: MouseEvent) => {
-            if (!isDragging) return;
-
-            const deltaX = e.clientX - startX;
-            const deltaY = e.clientY - startY;
-
-            const newX = initialX + deltaX;
-            const newY = initialY + deltaY;
-
-            // Constrain to viewport
-            const maxX = window.innerWidth - element.offsetWidth;
-            const maxY = window.innerHeight - element.offsetHeight;
-
-            element.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
-            element.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
-          };
-
-          const handleMouseUp = () => {
-            if (!isDragging) return;
-            isDragging = false;
-
-            // Save position
-            const rect = element.getBoundingClientRect();
-            localStorage.setItem(storageKey, JSON.stringify({
-              x: rect.left,
-              y: rect.top,
-            }));
-
-            // Re-enable transitions
-            element.style.transition = '';
-          };
-
-          element.addEventListener('mousedown', handleMouseDown);
-          document.addEventListener('mousemove', handleMouseMove);
-          document.addEventListener('mouseup', handleMouseUp);
-
-          // Store cleanup function
-          cleanupFunctions.push(() => {
-            element.removeEventListener('mousedown', handleMouseDown);
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-          });
-        });
-      });
-    };
-
     // Wait for tldraw to render toolbars
     const timeoutId = setTimeout(() => {
-      makeToolbarsDraggable();
-      
+      const cleanupFunctions = makeToolbarsDraggable();
+
       // Also watch for dynamically added toolbars
       const observer = new MutationObserver(() => {
-        makeToolbarsDraggable();
+        const newCleanups = makeToolbarsDraggable();
+        cleanupFunctions.push(...newCleanups);
       });
 
       const container = document.querySelector('.tl-container');
@@ -270,11 +124,15 @@ export default function Canvas({ roomId }: CanvasProps) {
           observer.disconnect();
         });
       }
-    }, 500);
+
+      return () => {
+        clearTimeout(timeoutId);
+        cleanupFunctions.forEach((cleanup) => cleanup());
+      };
+    }, TIMING.TOOLBAR_DRAGGABLE_INIT_DELAY);
 
     return () => {
       clearTimeout(timeoutId);
-      cleanupFunctions.forEach((cleanup) => cleanup());
     };
   }, [isEditorMounted]);
 
@@ -297,7 +155,7 @@ export default function Canvas({ roomId }: CanvasProps) {
         event: 'canvas-update',
         payload: { snapshot },
       });
-    }, 33); // ~30fps
+    }, CANVAS_THROTTLE_MS);
 
     // Set up store listener AFTER a brief delay to ensure channel subscription is ready
     // This prevents initial changes from being dropped if they occur synchronously
@@ -308,11 +166,11 @@ export default function Canvas({ roomId }: CanvasProps) {
       // Store the unsubscribe function in a ref so we can clean it up properly
       unsubscribeStoreRef.current = editor.store.listen(() => {
         if (isApplyingRemoteChangesRef.current) return;
-        
+
         // Get current store snapshot and broadcast to other peers
         throttledBroadcast(editor.store.getStoreSnapshot());
       });
-    }, 100); // Small delay to ensure channel subscription effect has run
+    }, TIMING.CANVAS_CHANNEL_SUBSCRIPTION_DELAY); // Small delay to ensure channel subscription effect has run
   };
 
   // Handle canvas resize/transform properly when container size changes
