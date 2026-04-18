@@ -46,6 +46,24 @@ export const SEARCH_PAGE_SIZE = 20;
 // Notification constants
 export const NOTIFICATION_PREVIEW_LENGTH = 100;
 
+// Code editor constants
+export const CODE_EDITOR_SYNC_DEBOUNCE = 500;
+export const SUPPORTED_LANGUAGES = [
+  'javascript',
+  'typescript',
+  'python',
+  'html',
+  'css',
+  'json',
+  'markdown',
+  'sql',
+  'bash',
+  'go',
+  'rust',
+  'java',
+] as const;
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
 // Panel size constraints
 export const PANEL_CONSTRAINTS = {
   sidebar: { min: 15, max: 40 },

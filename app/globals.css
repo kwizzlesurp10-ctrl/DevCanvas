@@ -254,6 +254,7 @@
     overflow: hidden;
     margin: 0;
     padding: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     scrollbar-width: none;
     -ms-overflow-style: none;
     @apply bg-background text-foreground;
