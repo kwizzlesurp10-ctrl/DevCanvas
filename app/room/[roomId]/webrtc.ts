@@ -1,5 +1,6 @@
 // WebRTC signaling and peer connection logic
 import { supabase } from '@/lib/supabaseClient';
+import { WEBRTC_ICE_SERVERS, TIMING } from '@/lib/constants';
 
 export interface WebRTCConfig {
   roomId: string;
@@ -22,10 +23,7 @@ export class WebRTCManager {
   async initialize() {
     // Create peer connection with STUN servers
     this.peerConnection = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-      ],
+      iceServers: WEBRTC_ICE_SERVERS as RTCIceServer[],
     });
 
     // Set up Supabase realtime channel for signaling
@@ -133,7 +131,7 @@ export class WebRTCManager {
       if (!this.isInitiator && this.peerConnection) {
         await this.createOffer();
       }
-    }, 1000);
+    }, TIMING.WEBRTC_INITIATOR_TIMEOUT);
   }
 
   async createOffer() {
