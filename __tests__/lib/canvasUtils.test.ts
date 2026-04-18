@@ -2,7 +2,7 @@ import { throttleSnapshot } from '@/lib/utils/canvas';
 import type { TLStoreSnapshot } from '@tldraw/tldraw';
 
 // We don't need a real TLStoreSnapshot for testing the throttle behavior
-const makeSnapshot = (id: number) => ({ id } as unknown as TLStoreSnapshot);
+const makeSnapshot = (mockId: number) => ({ mockId } as unknown as TLStoreSnapshot);
 
 describe('throttleSnapshot', () => {
   beforeEach(() => {
