@@ -134,3 +134,6 @@ CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms
 
 CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON messages
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Optional: Full-text search index for better performance
+-- CREATE INDEX idx_messages_content_search ON messages USING gin(to_tsvector('english', content));

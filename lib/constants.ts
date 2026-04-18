@@ -39,6 +39,13 @@ export const WEBRTC_ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ] as const;
 
+// Search constants
+export const SEARCH_DEBOUNCE_MS = 300;
+export const SEARCH_PAGE_SIZE = 20;
+
+// Notification constants
+export const NOTIFICATION_PREVIEW_LENGTH = 100;
+
 // Panel size constraints
 export const PANEL_CONSTRAINTS = {
   sidebar: { min: 15, max: 40 },

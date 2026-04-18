@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { getAnonymousUserId } from '@/lib/supabaseClient';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -17,18 +17,41 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Send, Pencil, Trash2, X, Check, MessageCircle, Smile, ArrowLeft } from 'lucide-react';
+import { Send, Pencil, Trash2, X, Check, MessageCircle, Smile, ArrowLeft, Search, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message, Reaction } from '@/types/database';
 import { useMessageHandling } from './hooks/useMessageHandling';
 import { useReactions } from './hooks/useReactions';
+import { useSearch, type SearchResult } from './hooks/useSearch';
 
 const EMOJI_OPTIONS = ['👍', '👎', '❤️', '😂', '🎉', '🤔', '👀', '🔥', '✅', '❌', '🚀', '💯'];
 
 interface ChatProps {
   roomId: string;
+}
+
+// Highlight matching text in search results
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
 }
 
 // Markdown renderer shared across message views
@@ -169,7 +192,20 @@ export default function Chat({ roomId }: ChatProps) {
   const [editContent, setEditContent] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
-  const { currentChannelId, userId, userName } = useAppStore();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const chatPanelRef = useRef<HTMLDivElement>(null);
+  const { currentChannelId, setCurrentChannelId, userId, userName } = useAppStore();
+
+  const {
+    results: searchResults,
+    isSearching,
+    searchQuery,
+    setSearchQuery,
+    loadMore,
+    hasMore,
+    clearSearch,
+  } = useSearch(roomId);
 
   const {
     messages,
@@ -288,6 +324,55 @@ export default function Chat({ roomId }: ChatProps) {
       setMessageToDelete(null);
     }
   };
+
+  const toggleSearch = useCallback(() => {
+    setIsSearchOpen((prev) => {
+      if (!prev) {
+        // Opening search — focus input after render
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      } else {
+        clearSearch();
+      }
+      return !prev;
+    });
+  }, [clearSearch]);
+
+  const handleSearchResultClick = useCallback(
+    (result: SearchResult) => {
+      // Navigate to the channel containing this message
+      if (result.channel_id !== currentChannelId) {
+        setCurrentChannelId(result.channel_id);
+      }
+      // Close search
+      setIsSearchOpen(false);
+      clearSearch();
+    },
+    [currentChannelId, setCurrentChannelId, clearSearch]
+  );
+
+  // Keyboard shortcut: Ctrl/Cmd+F to toggle search when chat panel is focused
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && e.key === 'f') {
+        // Only intercept if the chat panel contains the active element or if search is already open
+        if (
+          chatPanelRef.current?.contains(document.activeElement) ||
+          isSearchOpen
+        ) {
+          e.preventDefault();
+          toggleSearch();
+        }
+      }
+      // Escape to close search
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+        clearSearch();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchOpen, toggleSearch, clearSearch]);
 
   // Renders a single message row with action buttons, reactions, and optional reply count
   const renderMessage = (message: Message, options?: { showReplyButton?: boolean }) => {
@@ -411,11 +496,114 @@ export default function Chat({ roomId }: ChatProps) {
   }
 
   return (
-    <div className="flex h-full w-full border-l border-border bg-card">
+    <div ref={chatPanelRef} className="flex h-full w-full border-l border-border bg-card">
       {/* Main chat area */}
       <div className={`flex flex-1 flex-col ${threadParentId ? 'hidden md:flex' : ''}`}>
         <div className="border-b border-border p-4">
-          <h3 className="font-semibold">Chat</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Chat</h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleSearch}
+              title="Search messages (Ctrl+F)"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Search bar */}
+          {isSearchOpen && (
+            <div className="relative mt-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref={searchInputRef}
+                    placeholder="Search messages or authors..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsSearchOpen(false);
+                        clearSearch();
+                      }
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    clearSearch();
+                  }}
+                  title="Close search"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Search results dropdown */}
+              {(searchQuery.trim() !== '') && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+                  {isSearching && searchResults.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Searching...
+                    </div>
+                  ) : searchResults.length === 0 && !isSearching ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No results found
+                    </div>
+                  ) : (
+                    <>
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.id}
+                          onClick={() => handleSearchResultClick(result)}
+                          className="w-full border-b border-border p-3 text-left transition-colors hover:bg-accent last:border-b-0"
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-sm font-medium">
+                              <HighlightedText text={result.author_name || 'Anonymous'} query={searchQuery} />
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              #{result.channel_name}
+                            </span>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-sm text-foreground">
+                            <HighlightedText text={result.content} query={searchQuery} />
+                          </p>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {new Date(result.created_at).toLocaleString()}
+                          </span>
+                        </button>
+                      ))}
+                      {hasMore && (
+                        <button
+                          onClick={loadMore}
+                          disabled={isSearching}
+                          className="w-full p-2 text-center text-sm text-primary hover:bg-accent disabled:opacity-50"
+                        >
+                          {isSearching ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+                            </span>
+                          ) : (
+                            'Load more results'
+                          )}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <ScrollArea className="flex-1 p-4">
           {isLoading ? (

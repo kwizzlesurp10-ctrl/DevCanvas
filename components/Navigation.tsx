@@ -2,13 +2,23 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Home, Copy, Check } from 'lucide-react';
+import { Home, Copy, Check, Bell, BellOff } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getUserDisplayName } from '@/lib/supabaseClient';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
-export default function Navigation() {
+interface NavigationProps {
+  notificationsEnabled?: boolean;
+  notificationPermission?: NotificationPermission | 'default';
+  onToggleNotifications?: () => void;
+}
+
+export default function Navigation({
+  notificationsEnabled,
+  notificationPermission,
+  onToggleNotifications,
+}: NavigationProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { userName } = useAppStore();
@@ -78,6 +88,31 @@ export default function Navigation() {
             <span className="hidden sm:inline max-w-[120px] truncate text-sm text-muted-foreground">
               {displayName}
             </span>
+          )}
+          {isRoomPage && onToggleNotifications && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                onToggleNotifications();
+                if (!notificationsEnabled && notificationPermission === 'denied') {
+                  toast.error('Notifications blocked. Please enable them in your browser settings.');
+                }
+              }}
+              title={
+                notificationsEnabled
+                  ? 'Disable notifications'
+                  : notificationPermission === 'denied'
+                    ? 'Notifications blocked by browser'
+                    : 'Enable notifications'
+              }
+            >
+              {notificationsEnabled ? (
+                <Bell className="h-4 w-4" />
+              ) : (
+                <BellOff className="h-4 w-4" />
+              )}
+            </Button>
           )}
           {isRoomPage && roomId && (
             <Button
