@@ -60,7 +60,7 @@ export function useReactions(channelId: string | null, messageIds: string[]): Us
 
     loadReactions();
     return () => { cancelled = true; };
-  }, [channelId, messageIds, messageIdsKey]);
+  }, [channelId, messageIdsKey]);
 
   // Subscribe to realtime changes on reactions
   useEffect(() => {
@@ -108,7 +108,7 @@ export function useReactions(channelId: string | null, messageIds: string[]): Us
     return () => {
       channel.unsubscribe();
     };
-  }, [channelId, messageIds, messageIdsKey]);
+  }, [channelId, messageIdsKey]);
 
   const toggleReaction = useCallback(
     async (messageId: string, emoji: string) => {

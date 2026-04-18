@@ -455,14 +455,14 @@ export default function Chat({ roomId }: ChatProps) {
 
       {/* Thread panel */}
       {threadParentId && (
-        <div className="flex w-full flex-col border-l border-border md:w-80 lg:w-96">
+        <div className="flex w-full flex-col border-l border-border md:w-80 lg:w-96" role="complementary" aria-label="Thread panel">
           <div className="flex items-center gap-2 border-b border-border p-4">
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6"
               onClick={closeThread}
-              title="Close thread"
+              aria-label="Back to channel"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -472,7 +472,7 @@ export default function Chat({ roomId }: ChatProps) {
               size="icon"
               className="ml-auto h-6 w-6"
               onClick={closeThread}
-              title="Close thread"
+              aria-label="Close thread"
             >
               <X className="h-4 w-4" />
             </Button>
