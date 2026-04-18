@@ -12,8 +12,8 @@ interface UseWebRTCResult {
   disconnect: () => Promise<void>;
   toggleMute: () => void;
   toggleScreenShare: () => Promise<void>;
-  localAudioRef: React.RefObject<HTMLAudioElement>;
-  remoteAudioRef: React.RefObject<HTMLAudioElement>;
+  localAudioRef: React.RefObject<HTMLAudioElement | null>;
+  remoteAudioRef: React.RefObject<HTMLAudioElement | null>;
 }
 
 /**
