@@ -23,7 +23,7 @@ export class WebRTCManager {
   async initialize() {
     // Create peer connection with STUN servers
     this.peerConnection = new RTCPeerConnection({
-      iceServers: WEBRTC_ICE_SERVERS as RTCIceServer[],
+      iceServers: WEBRTC_ICE_SERVERS.map((server) => ({ ...server })),
     });
 
     // Set up Supabase realtime channel for signaling
