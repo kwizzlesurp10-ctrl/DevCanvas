@@ -4,6 +4,10 @@
 // IMPORTANT: Set your Supabase credentials in .env.local or as environment variables
 // This script reads from environment variables to avoid exposing credentials
 
+if (typeof process.loadEnvFile === 'function') {
+  process.loadEnvFile('.env.local');
+}
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Read from environment variables (set in .env.local or system env)
@@ -16,9 +20,7 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url');
   console.error('  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key');
   console.error('\nOr create a .env.local file with these values.');
-  console.error('\nTo load .env.local in Node.js, use:');
-  console.error('  npm install dotenv');
-  console.error('  require("dotenv").config({ path: ".env.local" });');
+  console.error('\nThis script auto-loads .env.local when supported by your Node version.');
   process.exit(1);
 }
 
