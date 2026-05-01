@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { useWebRTC } from './hooks/useWebRTC';
 
 interface VoiceDockProps {
@@ -10,6 +11,9 @@ interface VoiceDockProps {
 }
 
 export default function VoiceDock({ roomId }: VoiceDockProps) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  
   const {
     isConnected,
     isMuted,
@@ -25,16 +29,24 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
   } = useWebRTC(roomId);
 
   const handleConnect = async () => {
+    setIsConnecting(true);
     try {
       await connect();
     } catch (error) {
       console.error('Failed to connect:', error);
       toast.error('Failed to access microphone. Please grant permissions and try again.');
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   const handleDisconnect = async () => {
-    await disconnect();
+    setIsDisconnecting(true);
+    try {
+      await disconnect();
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   const handleToggleMute = () => {
@@ -78,9 +90,14 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
             variant="default"
             size="icon"
             onClick={handleConnect}
+            disabled={isConnecting}
             title="Connect voice"
           >
-            <Phone className="h-4 w-4" />
+            {isConnecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Phone className="h-4 w-4" />
+            )}
           </Button>
         ) : (
           <>
@@ -110,16 +127,26 @@ export default function VoiceDock({ roomId }: VoiceDockProps) {
               variant="destructive"
               size="icon"
               onClick={handleDisconnect}
+              disabled={isDisconnecting}
               title="Disconnect"
             >
-              <PhoneOff className="h-4 w-4" />
+              {isDisconnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PhoneOff className="h-4 w-4" />
+              )}
             </Button>
           </>
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground">
-        {isConnected ? 'Connected' : 'Not connected'}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className={`h-2 w-2 rounded-full ${
+          isConnected ? 'bg-green-500' : 
+          isConnecting ? 'bg-yellow-500 animate-pulse' : 
+          'bg-muted-foreground'
+        }`} />
+        {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Not connected'}
       </div>
     </div>
   );
