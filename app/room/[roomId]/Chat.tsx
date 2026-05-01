@@ -199,20 +199,6 @@ export default function Chat({ roomId }: ChatProps) {
   const threadEndRef = useRef<HTMLDivElement>(null);
   const { currentChannelId, setCurrentChannelId, userId, userName } = useAppStore();
 
-  // Auto-scroll to bottom when messages change
-  useLayoutEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  // Auto-scroll thread when replies change
-  useLayoutEffect(() => {
-    if (threadEndRef.current) {
-      threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [threadMessages]);
-
   const {
     results: searchResults,
     isSearching,
@@ -250,6 +236,20 @@ export default function Chat({ roomId }: ChatProps) {
   }, [messages, threadMessages, threadParentId]);
 
   const { reactions, toggleReaction } = useReactions(currentChannelId, allMessageIds);
+
+  // Auto-scroll to bottom when messages change
+  useLayoutEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Auto-scroll thread when replies change
+  useLayoutEffect(() => {
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [threadMessages]);
 
   // Find parent message for the thread panel
   const threadParentMessage = useMemo(
