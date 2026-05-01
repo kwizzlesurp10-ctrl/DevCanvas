@@ -2,22 +2,31 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Home, Copy, Check, Bell, BellOff } from 'lucide-react';
+import { Home, Copy, Check, Bell, BellOff, Users } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAppStore } from '@/lib/store';
 import { getUserDisplayName } from '@/lib/supabaseClient';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
+interface PresenceUser {
+  id: string;
+  name: string;
+  status: 'online' | 'away' | 'idle';
+}
+
 interface NavigationProps {
   notificationsEnabled?: boolean;
   notificationPermission?: NotificationPermission | 'default';
   onToggleNotifications?: () => void;
+  onlineUsers?: PresenceUser[];
 }
 
 export default function Navigation({
   notificationsEnabled,
   notificationPermission,
   onToggleNotifications,
+  onlineUsers = [],
 }: NavigationProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,6 +93,32 @@ export default function Navigation({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* Online users indicator */}
+          {isRoomPage && onlineUsers.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1" title={`${onlineUsers.length} user${onlineUsers.length !== 1 ? 's' : ''} online`}>
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="flex -space-x-2">
+                {onlineUsers.slice(0, 4).map((user) => (
+                  <Avatar key={user.id} className="h-6 w-6 border-2 border-card">
+                    <AvatarFallback className={`text-xs ${
+                      user.status === 'online' ? 'bg-primary text-primary-foreground' :
+                      user.status === 'idle' ? 'bg-muted text-muted-foreground' :
+                      'bg-secondary text-secondary-foreground'
+                    }`}>
+                      {user.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {onlineUsers.length > 4 && (
+                  <Avatar className="h-6 w-6 border-2 border-card">
+                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                      +{onlineUsers.length - 4}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            </div>
+          )}
           {displayName && (
             <span className="hidden sm:inline max-w-[120px] truncate text-sm text-muted-foreground">
               {displayName}

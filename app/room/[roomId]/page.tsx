@@ -14,6 +14,7 @@ import CodeEditor from './CodeEditor';
 import { Hash, PenSquare, MessageCircle, Mic, Code2 } from 'lucide-react';
 import { usePanelPersistence } from './hooks/usePanelPersistence';
 import { useNotifications } from './hooks/useNotifications';
+import { usePresence } from './hooks/usePresence';
 import { MOBILE_BREAKPOINT, TIMING, PANEL_CONSTRAINTS } from '@/lib/constants';
 import type { Message } from '@/types/database';
 
@@ -48,6 +49,9 @@ export default function RoomPage() {
 
   const { sendNotification, isEnabled: notificationsEnabled, toggleEnabled: toggleNotifications, permissionState } =
     useNotifications(handleNavigateToChannel);
+
+  // User presence tracking
+  const { onlineUsers, updatePanel } = usePresence(roomId);
 
   useEffect(() => {
     setCurrentRoomId(roomId);
@@ -176,6 +180,13 @@ export default function RoomPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMobile, sidebarPanelRef]);
 
+  // Update presence when active panel changes on mobile
+  useEffect(() => {
+    if (isMobile) {
+      updatePanel(mobileActivePanel);
+    }
+  }, [isMobile, mobileActivePanel, updatePanel]);
+
   const mobileTabs: { id: MobilePanel; label: string; icon: React.ReactNode }[] = [
     { id: 'channels', label: 'Channels', icon: <Hash className="h-5 w-5" /> },
     { id: 'canvas', label: 'Canvas', icon: <PenSquare className="h-5 w-5" /> },
@@ -190,6 +201,7 @@ export default function RoomPage() {
         notificationsEnabled={notificationsEnabled}
         notificationPermission={permissionState}
         onToggleNotifications={toggleNotifications}
+        onlineUsers={onlineUsers}
       />
 
       {/* Mobile layout (< md) */}

@@ -59,28 +59,59 @@ export default function Canvas({ roomId }: CanvasProps) {
 
         try {
           isApplyingRemoteChangesRef.current = true;
+          
           // Apply remote changes using tldraw's store API
-          // The payload should contain the store snapshot or incremental changes
-          if (payload.snapshot) {
-            // Full snapshot update using tldraw v4 API
-            // Note: For now, we'll skip applying snapshots to avoid API conflicts
-            // In production, use tldraw's built-in multiplayer sync or proper store API
-            try {
-              // TODO: Implement proper snapshot loading when tldraw v4 API is finalized
-              // For now, this is a placeholder to prevent runtime errors
-            } catch (loadError) {
-              console.error('Error processing snapshot:', loadError);
-            }
-          } else if (payload.changes) {
-            // Incremental changes - apply directly to store
-            // This is a simplified approach - for production, use proper CRDT/operational transforms
-            const changes = payload.changes;
-            if (Array.isArray(changes)) {
-              changes.forEach(() => {
-                // Apply each change to the store
-                // Adjust based on tldraw's actual change format
-                // For now, this is a placeholder - implement proper change application
-              });
+          if (payload.snapshot && editorRef.current) {
+            const editor = editorRef.current;
+            const store = editor.store;
+            
+            // Get the incoming snapshot data
+            const remoteSnapshot = payload.snapshot;
+            
+            // Apply changes by comparing and merging records
+            if (remoteSnapshot.store) {
+              const currentSnapshot = store.getStoreSnapshot();
+              const currentRecords = currentSnapshot.store || {};
+              const remoteRecords = remoteSnapshot.store || {};
+              
+              // Find records to add or update (excluding document and page records to avoid conflicts)
+              const recordsToUpdate: Record<string, unknown>[] = [];
+              const recordIdsToRemove: string[] = [];
+              
+              for (const [id, record] of Object.entries(remoteRecords)) {
+                // Skip system records (document, page) to avoid conflicts
+                const recordTypeName = (record as { typeName?: string })?.typeName;
+                if (recordTypeName === 'document' || recordTypeName === 'page') continue;
+                
+                const currentRecord = currentRecords[id];
+                if (!currentRecord || JSON.stringify(currentRecord) !== JSON.stringify(record)) {
+                  recordsToUpdate.push(record as Record<string, unknown>);
+                }
+              }
+              
+              // Find records to remove (present locally but not in remote, excluding system records)
+              for (const [id, record] of Object.entries(currentRecords)) {
+                const recordTypeName = (record as { typeName?: string })?.typeName;
+                if (recordTypeName === 'document' || recordTypeName === 'page') continue;
+                
+                if (!remoteRecords[id]) {
+                  recordIdsToRemove.push(id);
+                }
+              }
+              
+              // Apply updates in a batch using store.mergeRemoteChanges
+              if (recordsToUpdate.length > 0 || recordIdsToRemove.length > 0) {
+                store.mergeRemoteChanges(() => {
+                  // Remove deleted records
+                  if (recordIdsToRemove.length > 0) {
+                    store.remove(recordIdsToRemove as never[]);
+                  }
+                  // Add/update records
+                  if (recordsToUpdate.length > 0) {
+                    store.put(recordsToUpdate as never[]);
+                  }
+                });
+              }
             }
           }
         } catch (error) {

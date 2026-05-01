@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { getAnonymousUserId } from '@/lib/supabaseClient';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -195,6 +195,8 @@ export default function Chat({ roomId }: ChatProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const threadEndRef = useRef<HTMLDivElement>(null);
   const { currentChannelId, setCurrentChannelId, userId, userName } = useAppStore();
 
   const {
@@ -234,6 +236,20 @@ export default function Chat({ roomId }: ChatProps) {
   }, [messages, threadMessages, threadParentId]);
 
   const { reactions, toggleReaction } = useReactions(currentChannelId, allMessageIds);
+
+  // Auto-scroll to bottom when messages change
+  useLayoutEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Auto-scroll thread when replies change
+  useLayoutEffect(() => {
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [threadMessages]);
 
   // Find parent message for the thread panel
   const threadParentMessage = useMemo(
@@ -613,6 +629,7 @@ export default function Chat({ roomId }: ChatProps) {
           ) : (
             <div className="space-y-4">
               {messages.map((message) => renderMessage(message, { showReplyButton: true }))}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </ScrollArea>
@@ -684,6 +701,7 @@ export default function Chat({ roomId }: ChatProps) {
             ) : (
               <div className="space-y-4">
                 {threadMessages.map((msg) => renderMessage(msg))}
+                <div ref={threadEndRef} />
               </div>
             )}
           </ScrollArea>

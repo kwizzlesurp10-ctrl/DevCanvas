@@ -15,6 +15,9 @@ export class WebRTCManager {
   private localStream: MediaStream | null = null;
   private isInitiator = false;
   private config: WebRTCConfig;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 3;
+  private isCleaningUp = false;
 
   constructor(config: WebRTCConfig) {
     this.config = config;
@@ -54,7 +57,26 @@ export class WebRTCManager {
     // Handle connection state changes
     this.peerConnection.onconnectionstatechange = () => {
       if (this.peerConnection && this.config.onConnectionStateChange) {
-        this.config.onConnectionStateChange(this.peerConnection.connectionState);
+        const state = this.peerConnection.connectionState;
+        this.config.onConnectionStateChange(state);
+        
+        // Handle disconnection and attempt reconnect
+        if (state === 'disconnected' || state === 'failed') {
+          this.handleConnectionFailure();
+        } else if (state === 'connected') {
+          this.reconnectAttempts = 0; // Reset on successful connection
+        }
+      }
+    };
+
+    // Handle ICE connection state for additional reliability
+    this.peerConnection.oniceconnectionstatechange = () => {
+      if (this.peerConnection) {
+        const iceState = this.peerConnection.iceConnectionState;
+        if (iceState === 'failed') {
+          // Try to restart ICE
+          this.restartIce();
+        }
       }
     };
 
@@ -226,7 +248,57 @@ export class WebRTCManager {
     return this.localStream.getAudioTracks().some((track) => !track.enabled);
   }
 
+  private async handleConnectionFailure() {
+    if (this.isCleaningUp) return;
+    
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      console.log(`WebRTC connection failed, attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      
+      // Wait before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 1000 * this.reconnectAttempts));
+      
+      // Close existing connection
+      if (this.peerConnection) {
+        this.peerConnection.close();
+      }
+      
+      // Reinitialize
+      await this.initialize();
+      
+      // Restart local stream if we had one
+      if (this.localStream) {
+        const tracks = this.localStream.getTracks();
+        tracks.forEach(track => {
+          this.peerConnection?.addTrack(track, this.localStream!);
+        });
+      }
+    } else {
+      console.error('WebRTC connection failed after max reconnect attempts');
+    }
+  }
+
+  private async restartIce() {
+    if (!this.peerConnection || !this.channel) return;
+    
+    try {
+      // Create a new offer with ICE restart
+      const offer = await this.peerConnection.createOffer({ iceRestart: true });
+      await this.peerConnection.setLocalDescription(offer);
+      
+      this.channel.send({
+        type: 'broadcast',
+        event: 'offer',
+        payload: { offer },
+      });
+    } catch (error) {
+      console.error('Error restarting ICE:', error);
+    }
+  }
+
   async cleanup() {
+    this.isCleaningUp = true;
+    
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
@@ -241,5 +313,8 @@ export class WebRTCManager {
       await this.channel.unsubscribe();
       this.channel = null;
     }
+    
+    this.isCleaningUp = false;
+    this.reconnectAttempts = 0;
   }
 }
