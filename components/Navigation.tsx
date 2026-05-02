@@ -2,7 +2,9 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Home, Copy, Check, Bell, BellOff, Users } from 'lucide-react';
+import { Home, Copy, Check, Bell, BellOff, Users, User, LogIn } from 'lucide-react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAppStore } from '@/lib/store';
 import { getUserDisplayName } from '@/lib/supabaseClient';
@@ -32,7 +34,42 @@ export default function Navigation({
   const pathname = usePathname();
   const { userName } = useAppStore();
   const [copied, setCopied] = useState(false);
-  const displayName = userName || getUserDisplayName();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+  const displayName = userDisplayName || userName || getUserDisplayName();
+
+  // Check authentication status
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Initial check
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsAuthenticated(!!user);
+      if (user) {
+        // Fetch profile display name
+        supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.display_name) {
+              setUserDisplayName(data.display_name);
+            }
+          });
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session?.user);
+      if (!session?.user) {
+        setUserDisplayName(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const isRoomPage = pathname?.startsWith('/room/');
   const roomId = isRoomPage ? pathname.split('/room/')[1] : null;
@@ -119,10 +156,23 @@ export default function Navigation({
               </div>
             </div>
           )}
-          {displayName && (
-            <span className="hidden sm:inline max-w-[120px] truncate text-sm text-muted-foreground">
-              {displayName}
-            </span>
+          {/* Auth buttons */}
+          {isAuthenticated ? (
+            <Link href="/profile">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline max-w-[100px] truncate">
+                  {displayName || 'Profile'}
+                </span>
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/auth/login">
+              <Button variant="outline" size="sm" className="gap-2">
+                <LogIn className="h-4 w-4" />
+                <span className="hidden sm:inline">Sign in</span>
+              </Button>
+            </Link>
           )}
           {isRoomPage && onToggleNotifications && (
             <Button

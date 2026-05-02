@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { supabase, getAnonymousUserId, getUserDisplayName, setUserDisplayName, isSupabaseConfigured, requireSupabaseConfig } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase/client';
 import { useAppStore } from '@/lib/store';
 import { Sparkles, AlertCircle } from 'lucide-react';
+import Navigation from '@/components/Navigation';
 
 export default function Home() {
   const router = useRouter();
@@ -17,12 +19,37 @@ export default function Home() {
   const [userName, setUserName] = useState(getUserDisplayName());
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { setUserId, setUserName: setStoreUserName } = useAppStore();
+
+  // Load authenticated user's profile name if available
+  useEffect(() => {
+    const supabaseClient = createClient();
+    
+    supabaseClient.auth.getUser().then(async ({ data: { user } }) => {
+      if (user) {
+        setIsAuthenticated(true);
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.display_name) {
+          setUserName(profile.display_name);
+          setUserDisplayName(profile.display_name);
+          setStoreUserName(profile.display_name);
+        }
+      }
+    });
+  }, [setStoreUserName]);
 
   // Show setup message if Supabase is not configured
   if (!isSupabaseConfigured) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background p-4 overflow-auto">
+      <div className="flex h-screen flex-col bg-background overflow-auto">
+        <Navigation />
+        <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md animate-scale-in">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
@@ -54,6 +81,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
@@ -161,7 +189,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-background p-4 overflow-auto">
+    <div className="flex h-screen flex-col bg-background overflow-auto">
+      <Navigation />
+      <div className="flex flex-1 items-center justify-center p-4">
       <Card className="w-full max-w-md animate-scale-in">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary animate-bounce-in">
@@ -235,6 +265,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key`}
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
